@@ -3,190 +3,150 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PaperPack</title>
-  <link rel="stylesheet" href="style.css?v=14" />
+  <title>PaperPack Clean v15</title>
+  <link rel="stylesheet" href="style.css?v=15" />
   <meta name="theme-color" content="#111111" />
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>PaperPack</h1>
-      <p>Dosyayı A4 veri desenine çevir, çıktıyı okutunca dosyayı geri aç.</p>
-    </div>
-    <span class="badge">statik / bağımlılıksız / v14</span>
-  </header>
+<header class="topbar">
+  <div>
+    <h1>PaperPack</h1>
+    <p>Dosyayı A4 veri karesine çevir, fotoğraf/PNG ile geri oku.</p>
+  </div>
+  <span class="badge">Clean v15</span>
+</header>
 
-  <main>
-    <section class="panel">
-      <h2>1) A4'e veri yerleştir</h2>
-      <div class="grid2">
-        <label class="field">
-          <span>Yerleşim</span>
-          <select id="layoutMode">
-            <option value="auto" selected>Otomatik: kaç dosya varsa ona göre</option>
-            <option value="single">Tek büyük kare</option>
-            <option value="grid">Çoklu kare: maksimum 9</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Yoğunluk</span>
-          <select id="density">
-            <option value="auto" selected>Otomatik / önerilen</option>
-            <option value="safe">Güvenli / büyük hücre</option>
-            <option value="standard">Standart</option>
-            <option value="dense">Yoğun</option>
-            <option value="max">Maksimum</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="block add-zone">
-        <div class="grid2">
-          <label class="field">
-            <span>Dosya ekle, maksimum 9</span>
-            <input id="filePicker" type="file" multiple />
-          </label>
-          <div class="field">
-            <span>Manuel HTML/metin ekle</span>
-            <button id="addManualBtn" type="button" class="secondary">Manuel kart ekle</button>
-          </div>
-        </div>
-        <p class="hint">Zorunlu 9 dosya yok. 2 dosya eklersen 2 kare, 4 dosya eklersen 4 kare basılır. En fazla 9 kare.</p>
-      </div>
-
-      <div id="itemsPanel" class="items-panel">
-        <div class="empty-items">Henüz veri eklenmedi. Dosya seç veya manuel kart ekle.</div>
-      </div>
-
-      <h3 class="subhead">Sayfa ayarları</h3>
-      <div class="grid2">
-        <label class="field">
-          <span>Sayfa yapısı</span>
-          <select id="pagePreset">
-            <option value="minimal">Sade: sadece veri kareleri</option>
-            <option value="note">Açıklamalı: kare + alt açıklama</option>
-            <option value="standard" selected>Standart: üst alan + okuyucu linki</option>
-            <option value="full">Tam bilgi: üst alan + link + dosya bilgileri + açıklamalar</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Okuyucu linki</span>
-          <input id="readerLink" type="url" value="https://0-vera.github.io/PaperPack/" />
-        </label>
-      </div>
-      <div class="grid2 output-options">
-        <label class="field checkboxline compact-check"><input id="showPageHeader" type="checkbox" checked><span>Üst başlığı göster</span></label>
-        <label class="field checkboxline compact-check"><input id="includeReaderLink" type="checkbox" checked><span>Okuyucu link alanını ekle</span></label>
-        <label class="field checkboxline compact-check"><input id="showGlobalTech" type="checkbox"><span>Teknik bilgileri göster</span></label>
-        <label class="field checkboxline compact-check"><input id="fitNineGrid" type="checkbox"><span>Boş yerleri de 3x3 düzen gibi koru</span></label>
-        <label class="field checkboxline compact-check"><input id="includeCodeFrame" type="checkbox" checked><span>Siyah okuma çerçevesi ekle</span></label>
-      </div>
+<main>
+  <section class="panel">
+    <h2>1) Dosya ekle</h2>
+    <div class="grid2">
       <label class="field">
-        <span>Genel açıklama</span>
-        <textarea id="globalDescription" class="small-textarea" placeholder="İsteğe bağlı. Örn: PaperPack linkini aç, sayfadaki kareyi okut, şifre varsa gir."></textarea>
+        <span>Dosya seç, maksimum 9</span>
+        <input id="filePicker" type="file" multiple />
       </label>
-
-      <div class="mobile-note">Mobilde büyük A4 önizleme gizlidir. Dosya ekle, A4 oluştur, PNG/SVG indir veya yazdır.</div>
-      <div id="capacityInfo" class="capacity"></div>
-      <div class="actions">
-        <button id="encodeBtn">A4 oluştur</button>
-        <button id="printBtn" disabled>Yazdır / PDF kaydet</button>
-        <button id="downloadPngBtn" disabled>PNG indir</button>
-        <button id="downloadSvgBtn" disabled>SVG indir</button>
+      <div class="field">
+        <span>Manuel HTML/metin</span>
+        <button id="addManualBtn" type="button" class="secondary">Manuel kart ekle</button>
       </div>
-      <div id="encodeStatus" class="status"></div>
-    </section>
-
-    <section class="paper-wrap">
-      <div id="paper" class="paper a4">
-        <div class="empty-state">A4 çıktısı burada oluşacak.</div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>2) A4'ten geri oku</h2>
-      <p class="hint desktop-hint">Fotoğraf yükle/çek. Sistem önce veri karesini otomatik bulur, gerekirse yamuk fotoğrafı düzeltip okur. Başarısız olursa manuel seçimde sadece kalın siyah çerçeveli veri karesini seç; siyah çerçeve dahil, dış kart boşluğu hariç.</p>
-      <p class="hint mobile-note">Mobilde canlı kamera yok. Fotoğraf çek/yükle; sistem otomatik düzeltme yapar. Netlik hâlâ önemli.</p>
-      <div class="grid2">
-        <label class="field">
-          <span>Okuma modu</span>
-          <select id="decodeMode">
-            <option value="auto" selected>Akıllı tara / tek + çoklu dene</option>
-            <option value="single">Tek kare oku</option>
-            <option value="multi">Çoklu A4 oku</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Görsel yükle / fotoğraf çek</span>
-          <input id="decodeImage" type="file" accept="image/*" capture="environment" />
-        </label>
-      </div>
-      <div class="photo-scan-note">
-        <strong>Telefon okuma modu</strong>
-        <span>Canlı kamera kaldırıldı. Fotoğraf çek/yükle; uygulama gölge/ışık ve perspektif düzeltmeyi otomatik dener.</span>
-      </div>
-
-      <div class="grid2 decode-advanced">
-        <label class="field">
-          <span>Okuma alanı</span>
-          <select id="decodeArea">
-            <option value="auto" selected>Tam görsel + seçili alan varsa onu da dene</option>
-            <option value="selected">Sadece seçili alanı oku</option>
-            <option value="full">Sadece tam görseli oku</option>
-          </select>
-        </label>
-        <div class="field"><span>Manuel alan seçimi</span><button id="resetSelectionBtn" type="button" class="secondary">Seçimi sıfırla</button></div>
-        <label class="field checkboxline compact-check"><input id="photoFix" type="checkbox" checked><span>Yamuk/gölgeli fotoğrafı düzeltmeyi dene</span></label>
-      </div>
-      <div class="preview-box decode-advanced">
-        <canvas id="imagePreview" class="image-preview"></canvas>
-        <p id="selectionInfo" class="hint">Görsel yükleyince otomatik alan seçimi yapılır. Gerekirse kalın siyah veri karesini sürükleyerek seç.</p>
-      </div>
-      <div class="actions">
-        <button id="decodeBtn">Oku</button>
-        <button id="clearDecodeBtn" type="button">Sonucu temizle</button>
-      </div>
-      <div id="decodeStatus" class="status"></div>
-      <div id="decodeResults" class="results"></div>
-    </section>
-  </main>
-
-  <template id="itemTemplate">
-    <div class="item-card">
-      <div class="item-head">
-        <strong class="item-title"></strong>
-        <button type="button" class="danger remove-item">Kaldır</button>
-      </div>
-      <label class="field manual-field hidden"><span>Manuel HTML/metin</span><textarea class="item-text" placeholder="<h1>Merhaba</h1>"></textarea></label>
-      <div class="grid2">
-        <label class="field"><span>Çıktı dosya adı</span><input class="item-name" type="text"></label>
-        <label class="field"><span>Bu kareye özel şifre</span><input class="item-password" type="password" autocomplete="new-password" placeholder="Boşsa şifresiz"></label>
-      </div>
-      <div class="grid2">
-        <label class="field"><span>Açıklama</span><textarea class="item-description small-textarea" placeholder="Bu kare altına basılacak kısa açıklama."></textarea></label>
-        <div class="mini-options">
-          <label class="checkboxline"><input class="item-show-name" type="checkbox" checked><span>Dosya adını göster</span></label>
-          <label class="checkboxline"><input class="item-show-desc" type="checkbox"><span>Açıklamayı göster</span></label>
-          <label class="checkboxline"><input class="item-show-tech" type="checkbox"><span>Teknik bilgiyi göster</span></label>
-        </div>
-      </div>
-      <div class="item-meta"></div>
     </div>
-  </template>
+    <div id="itemsPanel" class="items-panel"><div class="empty-items">Henüz veri eklenmedi.</div></div>
 
-  <template id="resultTemplate">
-    <div class="result-card">
-      <h3></h3>
-      <p class="meta"></p>
-      <div class="decrypt-zone hidden">
-        <label class="field small"><span>Şifre</span><input type="password" class="result-password" autocomplete="current-password"></label>
-        <button class="decrypt-open-btn">Şifreyi çöz ve yeni sekmede aç</button>
-      </div>
-      <div class="open-zone hidden"><button class="open-btn">Yeni sekmede aç</button><button class="download-btn">Dosyayı indir</button></div>
-      <pre class="error hidden"></pre>
+    <h2>2) A4 çıktısı</h2>
+    <div class="grid2">
+      <label class="field">
+        <span>Yerleşim</span>
+        <select id="layoutMode">
+          <option value="auto" selected>Otomatik: kaç dosya varsa</option>
+          <option value="single">Tek büyük kare</option>
+          <option value="grid">Çoklu kare, max 9</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Yoğunluk</span>
+        <select id="density">
+          <option value="auto" selected>Otomatik / güvenilir</option>
+          <option value="safe">Güvenli / büyük hücre</option>
+          <option value="standard">Standart</option>
+          <option value="dense">Yoğun</option>
+        </select>
+      </label>
     </div>
-  </template>
 
-  <script src="app.js?v=14"></script>
+    <div class="grid2">
+      <label class="field">
+        <span>Sayfa yapısı</span>
+        <select id="pagePreset">
+          <option value="minimal">Sade: sadece kare</option>
+          <option value="note">Kare + açıklama</option>
+          <option value="standard" selected>Standart</option>
+          <option value="full">Tam bilgi</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Okuyucu linki</span>
+        <input id="readerLink" type="url" value="https://0-vera.github.io/PaperPack/" />
+      </label>
+    </div>
+
+    <div class="grid2 output-options">
+      <label class="field checkboxline compact-check"><input id="showPageHeader" type="checkbox" checked><span>Üst başlığı göster</span></label>
+      <label class="field checkboxline compact-check"><input id="includeReaderLink" type="checkbox" checked><span>Okuyucu linkini yaz</span></label>
+      <label class="field checkboxline compact-check"><input id="showGlobalTech" type="checkbox"><span>Teknik bilgileri göster</span></label>
+      <label class="field checkboxline compact-check"><input id="fitNineGrid" type="checkbox"><span>Boş yerleri 3×3 koru</span></label>
+      <label class="field checkboxline compact-check"><input id="includeCodeFrame" type="checkbox" checked><span>Siyah okuma çerçevesi</span></label>
+      <label class="field checkboxline compact-check"><input id="useCompression" type="checkbox" checked><span>Gzip sıkıştırma</span></label>
+    </div>
+
+    <label class="field">
+      <span>Genel açıklama</span>
+      <textarea id="globalDescription" class="small-textarea" placeholder="İsteğe bağlı açıklama"></textarea>
+    </label>
+
+    <div id="capacityInfo" class="capacity"></div>
+    <div class="actions">
+      <button id="encodeBtn">A4 oluştur</button>
+      <button id="printBtn" disabled>Yazdır / PDF kaydet</button>
+      <button id="downloadPngBtn" disabled>PNG indir</button>
+      <button id="downloadSvgBtn" disabled>SVG indir</button>
+    </div>
+    <div id="encodeStatus" class="status"></div>
+  </section>
+
+  <section class="paper-wrap">
+    <div id="paper" class="paper a4"><div class="empty-state">A4 çıktısı burada oluşacak.</div></div>
+  </section>
+
+  <section class="panel">
+    <h2>3) Geri oku</h2>
+    <p class="hint">Önce PNG çıktısını test et. Sonra baskı fotoğrafına geç. Bu temiz sürümde manuel seçim yok; okuyucu en yoğun siyah veri karesini kendi bulur.</p>
+    <div class="grid2">
+      <label class="field">
+        <span>Okuma modu</span>
+        <select id="decodeMode">
+          <option value="auto" selected>Akıllı: tek + çoklu dene</option>
+          <option value="single">Tek kare</option>
+          <option value="multi">Çoklu A4</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Görsel yükle / fotoğraf çek</span>
+        <input id="decodeImage" type="file" accept="image/*" capture="environment" />
+      </label>
+    </div>
+    <div class="actions">
+      <button id="decodeBtn">Oku</button>
+      <button id="clearDecodeBtn" class="secondary">Sonuçları temizle</button>
+    </div>
+    <div id="decodeStatus" class="status"></div>
+    <div id="decodeResults" class="results"></div>
+  </section>
+</main>
+
+<template id="itemTemplate">
+  <div class="item-card">
+    <div class="item-head"><strong class="item-title"></strong><button type="button" class="remove-item secondary">Sil</button></div>
+    <div class="grid2">
+      <label class="field"><span>Dosya adı</span><input class="item-name" type="text"></label>
+      <label class="field"><span>Bu kareye özel şifre</span><input class="item-password" type="password" placeholder="Boşsa şifresiz"></label>
+    </div>
+    <label class="field"><span>Açıklama</span><textarea class="item-description small-textarea"></textarea></label>
+    <div class="grid3">
+      <label class="field checkboxline compact-check"><input class="item-show-name" type="checkbox" checked><span>Adı göster</span></label>
+      <label class="field checkboxline compact-check"><input class="item-show-desc" type="checkbox" checked><span>Açıklama göster</span></label>
+      <label class="field checkboxline compact-check"><input class="item-show-tech" type="checkbox"><span>Teknik bilgi</span></label>
+    </div>
+  </div>
+</template>
+
+<template id="resultTemplate">
+  <div class="result-card">
+    <h3></h3><div class="meta"></div>
+    <div class="decrypt-zone hidden"><input class="result-password" type="password" placeholder="Şifre"><button class="decrypt-open-btn">Şifreyi gir ve aç</button></div>
+    <div class="open-zone hidden"><button class="open-btn">Yeni sekmede aç</button><button class="download-btn secondary">Dosya indir</button></div>
+    <div class="error hidden"></div>
+  </div>
+</template>
+
+<script src="app.js?v=15"></script>
 </body>
 </html>
