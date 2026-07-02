@@ -1,194 +1,252 @@
 (() => {
   'use strict';
 
-  const MAGIC = [0x50,0x50,0x4b,0x31]; // PPK1
-  const VERSION = 1;
-  const DEFAULT_READER_URL = 'https://0-vera.github.io/PaperPack/';
-  const DEFAULT_READER_QR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMYAAADGCAIAAAAG+WgKAAAECklEQVR4nO3dWYrcMBRA0VTI/rdcWYChEeJqcHPOd03pXAQP29Ln+/3+gc7f0z+A30ZSxCRFTFLEJEVMUsQkRUxSxCRFTFLEJEXs38iLPp/P6t/xg5GrkHO/cO6Tb/s9O438QqsUMUkRkxQxSRGTFLGhie9p3b2gIxPNuqlnbr4b8fyc6l9x9v/iySpFTFLEJEVMUsQkRWxy4ntad1Vr7l1zs1v1yWefjtz5f/FklSImKWKSIiYpYpIilk18bzQyGVXT3Lqrh7exShGTFDFJEZMUMUkRe+XENzep7bwXtHrXG6dCqxQxSRGTFDFJEZMUsWzi2zmbjExz1TW16g7JnfPd2TnRKkVMUsQkRUxSxCRFbHLiO7tj5Mg0N7cDzNyzfuumwvt373yyShGTFDFJEZMUMUkR+7zxvsHKbdcBfwerFDFJEZMUMUkRkxSxyfP45q5PVa+ZU10Lu/9siOpa4dy3W6WISYqYpIhJipikiA1d41t3ctxts+TZHTXX/cKd77JKEZMUMUkRkxQxSRFbuFfnzrns6ewMuO40wJHvGvnkdVcqrVLEJEVMUsQkRUxSxCYnvurK4M5z0kfcdoLDiOoUe3d1cilJEZMUMUkRkxSxoYlv3RWinZ88966Rcx+qb39a9+yhuzp5DUkRkxQxSRGTFLFs55aRd404e5LdiHVT4dlzFqrfY5UiJilikiImKWKSIpZd43u+Zuf1srNP7d02/86pPtkqRUxSxCRFTFLEJEUsO49v3X2DO6987fxr7NwXdOfvsUoRkxQxSRGTFDFJEZvcuaXaF6Wa787OiTuftjv7FKHn+DhAUsQkRUxSxCRFLDud4exZ4ZWd193O7hKzbvq2ShGTFDFJEZMUMUkRy3ZuqZ6Aq2acnU//rdv38mndX8xzfFxKUsQkRUxSxCRFbPI5vrNnKKzzxntKqxnQc3xcSlLEJEVMUsQkRWxo4tu5E+bZ+zyr3zzyyU+3ndI+xypFTFLEJEVMUsQkRWzydIazrzl7DWvOunMfRr5r7jVPdm7hAEkRkxQxSRGTFLHJ5/h2Wvfc3Lp9UapdWZ7uPwXDKkVMUsQkRUxSxCRFbHKvzp0nx+208x7XkU9+Ort36AirFDFJEZMUMUkRkxSx7HSGdXcJjnzX2d0y13njDjlWKWKSIiYpYpIiJili2cS307o7Ld+4v0p1d2jFKkVMUsQkRUxSxCRF7JUT39k9WG7bE2bumcF1s61VipikiEmKmKSISYpYNvGdnXFGXrNuL5d1u6Ds3JXFeXxcSlLEJEVMUsQkRWxy4ju7v0r17Tt3sFw3ha37zXMzoFWKmKSISYqYpIhJitjQCewwzipFTFLEJEVMUsQkRUxSxCRFTFLEJEVMUsQkRew/xloyueRfs0gAAAAASUVORK5CYII=';
-  const ITERATIONS = 120000;
+  const MAGIC = [0x50, 0x50, 0x4b, 0x32]; // PPK2
+  const VERSION = 2;
+  const ITERATIONS = 220000;
+  const MAX_ITEMS = 9;
   const DENSITIES = {
-    single: { safe: 180, standard: 256, dense: 320, max: 384 },
-    nine: { safe: 72, standard: 96, dense: 112, max: 128 }
+    single: { safe: 180, standard: 220, dense: 256, max: 320 },
+    multi:  { safe: 72,  standard: 88,  dense: 104, max: 120 }
   };
-  const TRY_GRIDS = [256,180,320,384,128,96,112,72];
+  const TRY_GRIDS = [320, 256, 220, 180, 120, 104, 88, 72];
 
-  const $ = id => document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
   const els = {
-    encodeMode: $('encodeMode'), density: $('density'), singleInputs: $('singleInputs'), nineInputs: $('nineInputs'),
-    fileInput: $('fileInput'), multiFileInput: $('multiFileInput'), textInput: $('textInput'), manualName: $('manualName'),
-    password: $('password'), hideNames: $('hideNames'), includeReaderQr: $('includeReaderQr'), readerLink: $('readerLink'),
-    encodeBtn: $('encodeBtn'), printBtn: $('printBtn'), downloadPngBtn: $('downloadPngBtn'), downloadSvgBtn: $('downloadSvgBtn'),
-    encodeStatus: $('encodeStatus'), capacityInfo: $('capacityInfo'), paper: $('paper'),
-    decodeMode: $('decodeMode'), decodeArea: $('decodeArea'), decodeImage: $('decodeImage'), decodeBtn: $('decodeBtn'),
-    clearDecodeBtn: $('clearDecodeBtn'), resetSelectionBtn: $('resetSelectionBtn'), decodeStatus: $('decodeStatus'),
-    decodeResults: $('decodeResults'), resultTemplate: $('resultTemplate'), imagePreview: $('imagePreview'), selectionInfo: $('selectionInfo')
+    layoutMode: $('layoutMode'), density: $('density'), filePicker: $('filePicker'), addManualBtn: $('addManualBtn'),
+    itemsPanel: $('itemsPanel'), itemTemplate: $('itemTemplate'), pagePreset: $('pagePreset'), readerLink: $('readerLink'),
+    showPageHeader: $('showPageHeader'), includeReaderLink: $('includeReaderLink'), showGlobalTech: $('showGlobalTech'), fitNineGrid: $('fitNineGrid'),
+    globalDescription: $('globalDescription'), capacityInfo: $('capacityInfo'), encodeBtn: $('encodeBtn'), printBtn: $('printBtn'),
+    downloadPngBtn: $('downloadPngBtn'), downloadSvgBtn: $('downloadSvgBtn'), encodeStatus: $('encodeStatus'), paper: $('paper'),
+    decodeMode: $('decodeMode'), decodeArea: $('decodeArea'), decodeImage: $('decodeImage'), decodeBtn: $('decodeBtn'), clearDecodeBtn: $('clearDecodeBtn'),
+    decodeStatus: $('decodeStatus'), decodeResults: $('decodeResults'), resultTemplate: $('resultTemplate'), imagePreview: $('imagePreview'),
+    selectionInfo: $('selectionInfo'), resetSelectionBtn: $('resetSelectionBtn'),
+    cameraStage: $('cameraStage'), scanVideo: $('scanVideo'), startCameraBtn: $('startCameraBtn'), captureScanBtn: $('captureScanBtn'), autoScanBtn: $('autoScanBtn'), stopCameraBtn: $('stopCameraBtn'), scanHint: $('scanHint')
   };
 
-  let lastPaperBlobUrl = null;
-  let currentCards = [];
-  let currentMode = 'single';
-  let preview = { img:null, canvas:null, selection:null, scaleX:1, scaleY:1, drag:false, start:null };
+  let items = [];
+  let lastCards = [];
+  let previewImageCanvas = null;
+  let selection = null;
+  let dragStart = null;
+  let scanStream = null;
+  let autoScanTimer = null;
+  let autoScanBusy = false;
 
-  init();
+  bind();
+  renderItems();
+  updateCapacityInfo();
 
-  function init(){
-    els.readerLink.value = DEFAULT_READER_URL;
-    els.encodeMode.addEventListener('change', () => { toggleMode(); updateCapacityInfo(); });
+  function bind(){
+    els.filePicker.addEventListener('change', addPickedFiles);
+    els.addManualBtn.addEventListener('click', () => addManualItem());
+    els.layoutMode.addEventListener('change', updateCapacityInfo);
     els.density.addEventListener('change', updateCapacityInfo);
-    els.includeReaderQr.addEventListener('change', updateCapacityInfo);
+    els.pagePreset.addEventListener('change', applyPreset);
     els.encodeBtn.addEventListener('click', encodeCurrent);
     els.printBtn.addEventListener('click', () => window.print());
     els.downloadPngBtn.addEventListener('click', downloadPaperPng);
     els.downloadSvgBtn.addEventListener('click', downloadPaperSvg);
-    els.decodeImage.addEventListener('change', preparePreview);
+    els.decodeImage.addEventListener('change', loadDecodePreview);
     els.decodeBtn.addEventListener('click', decodeImageInput);
     els.clearDecodeBtn.addEventListener('click', () => { els.decodeResults.innerHTML=''; setDecodeStatus(''); });
-    els.resetSelectionBtn.addEventListener('click', () => { preview.selection=null; drawPreview(); });
-    setupPreviewSelection();
-    toggleMode(); updateCapacityInfo();
-    if(location.protocol === 'file:'){
-      setEncodeStatus('Uyarı: Dosyaya çift tıklayarak açtın. GitHub Pages veya localhost üzerinde çalıştırınca PWA/manifest hataları kaybolur.');
+    els.resetSelectionBtn.addEventListener('click', () => { selection=null; redrawPreview(); });
+    els.imagePreview.addEventListener('pointerdown', startSelection);
+    els.imagePreview.addEventListener('pointermove', moveSelection);
+    els.imagePreview.addEventListener('pointerup', endSelection);
+    els.startCameraBtn.addEventListener('click', startCameraScan);
+    els.captureScanBtn.addEventListener('click', captureAndDecodeFromCamera);
+    els.autoScanBtn.addEventListener('click', toggleAutoScan);
+    els.stopCameraBtn.addEventListener('click', stopCameraScan);
+  }
+
+  function applyPreset(){
+    const p = els.pagePreset.value;
+    if(p === 'minimal'){
+      els.showPageHeader.checked = false; els.includeReaderLink.checked = false; els.showGlobalTech.checked = false;
+    }else if(p === 'note'){
+      els.showPageHeader.checked = false; els.includeReaderLink.checked = false;
+    }else if(p === 'standard'){
+      els.showPageHeader.checked = true; els.includeReaderLink.checked = true; els.showGlobalTech.checked = false;
+    }else if(p === 'full'){
+      els.showPageHeader.checked = true; els.includeReaderLink.checked = true; els.showGlobalTech.checked = true;
+      for(const it of items){ it.showName = true; it.showDescription = true; it.showTech = true; }
+      renderItems();
     }
   }
 
-  function toggleMode(){
-    const nine = els.encodeMode.value === 'nine';
-    els.singleInputs.classList.toggle('hidden', nine);
-    els.nineInputs.classList.toggle('hidden', !nine);
+  async function addPickedFiles(){
+    const selected = Array.from(els.filePicker.files || []);
+    for(const file of selected){
+      if(items.length >= MAX_ITEMS) break;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      items.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()), kind:'file', name:sanitizeName(file.name), mime:file.type || mimeFromName(file.name), bytes, text:'', password:'', description:'', showName:true, showDescription:false, showTech:false });
+    }
+    els.filePicker.value = '';
+    renderItems();
+    updateCapacityInfo();
+  }
+
+  function addManualItem(){
+    if(items.length >= MAX_ITEMS){ setEncodeStatus('En fazla 9 kare eklenebilir.'); return; }
+    items.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random()), kind:'manual', name:`manual-${items.length+1}.html`, mime:'text/html', bytes:null, text:'', password:'', description:'', showName:true, showDescription:false, showTech:false });
+    renderItems();
+    updateCapacityInfo();
+  }
+
+  function renderItems(){
+    els.itemsPanel.innerHTML = '';
+    if(!items.length){ els.itemsPanel.innerHTML = '<div class="empty-items">Henüz veri eklenmedi. Dosya seç veya manuel kart ekle.</div>'; return; }
+    items.forEach((item, idx) => {
+      const node = els.itemTemplate.content.firstElementChild.cloneNode(true);
+      node.querySelector('.item-title').textContent = `${idx+1}. ${item.kind === 'manual' ? 'Manuel veri' : 'Dosya'}`;
+      const manual = node.querySelector('.manual-field');
+      if(item.kind === 'manual') manual.classList.remove('hidden');
+      const text = node.querySelector('.item-text');
+      if(text){ text.value = item.text || ''; text.addEventListener('input', () => { item.text = text.value; item.bytes = new TextEncoder().encode(item.text); }); }
+      const name = node.querySelector('.item-name'); name.value = item.name; name.addEventListener('input', () => { item.name=sanitizeName(name.value || 'paperpack.html'); item.mime=mimeFromName(item.name); });
+      const pass = node.querySelector('.item-password'); pass.value = item.password || ''; pass.addEventListener('input', () => { item.password=pass.value; });
+      const desc = node.querySelector('.item-description'); desc.value = item.description || ''; desc.addEventListener('input', () => { item.description=desc.value; });
+      const sn = node.querySelector('.item-show-name'); sn.checked = item.showName; sn.addEventListener('change', () => { item.showName=sn.checked; });
+      const sd = node.querySelector('.item-show-desc'); sd.checked = item.showDescription; sd.addEventListener('change', () => { item.showDescription=sd.checked; });
+      const st = node.querySelector('.item-show-tech'); st.checked = item.showTech; st.addEventListener('change', () => { item.showTech=st.checked; });
+      node.querySelector('.remove-item').addEventListener('click', () => { items.splice(idx,1); renderItems(); updateCapacityInfo(); });
+      const meta = node.querySelector('.item-meta');
+      const size = item.kind === 'manual' ? new TextEncoder().encode(item.text || '').length : (item.bytes ? item.bytes.length : 0);
+      meta.textContent = `${item.mime || 'text/plain'} • ham boyut ${(size/1024).toFixed(2)} KB${item.password ? ' • şifreli basılacak' : ''}`;
+      els.itemsPanel.appendChild(node);
+    });
+  }
+
+  function getEffectiveLayout(){
+    const mode = els.layoutMode.value;
+    if(mode === 'single') return 'single';
+    if(mode === 'grid') return 'multi';
+    return items.length <= 1 ? 'single' : 'multi';
+  }
+
+  function chooseGrid(layout, payloadSize){
+    const density = els.density.value;
+    const d = DENSITIES[layout];
+    if(density !== 'auto') return d[density];
+    const candidates = layout === 'single' ? [180,220,256,320] : [72,88,104,120];
+    for(const n of candidates){ if(payloadSize < Math.floor((n*n)/8) - 500) return n; }
+    return candidates[candidates.length-1];
   }
 
   function updateCapacityInfo(){
-    const mode = els.encodeMode.value;
-    const n = DENSITIES[mode][els.density.value];
-    const cap = Math.floor(n*n/8);
-    const reserve = mode === 'nine' ? 180 : 220;
-    const practical = Math.max(0, cap - reserve);
-    const txt = mode === 'nine'
-      ? `Seçili yoğunluk: ${n}×${n}. Kutu başı ham kapasite yaklaşık ${(cap/1024).toFixed(1)} KB, pratik dosya alanı yaklaşık ${(practical/1024).toFixed(1)} KB.`
-      : `Seçili yoğunluk: ${n}×${n}. Ham kapasite yaklaşık ${(cap/1024).toFixed(1)} KB, pratik dosya alanı yaklaşık ${(practical/1024).toFixed(1)} KB.`;
-    els.capacityInfo.textContent = txt + ' HTML/metin dosyası gzip ile daha küçük basılabilir.';
+    const layout = getEffectiveLayout();
+    const n = chooseGrid(layout, 0);
+    const cap = Math.floor((n*n)/8);
+    if(layout === 'single') els.capacityInfo.textContent = `Tek büyük kare modu. Önerilen grid ${n}×${n}, ham kapasite yaklaşık ${(cap/1024).toFixed(1)} KB.`;
+    else els.capacityInfo.textContent = `Çoklu kare modu. En fazla 9 kare. Önerilen grid ${n}×${n}, kare başı ham kapasite yaklaşık ${(cap/1024).toFixed(1)} KB.`;
   }
 
   async function encodeCurrent(){
     try{
+      renderItems();
       setEncodeStatus('Hazırlanıyor...');
-      await tick();
-      const mode = els.encodeMode.value;
-      const gridSize = DENSITIES[mode][els.density.value];
-      const password = els.password.value || '';
-      const files = mode === 'nine' ? await getNineFiles() : [await getSingleFile()];
-      if(!files.length) throw new Error('Dosya veya metin girilmedi.');
-      const cards = [];
-      for(const file of files.slice(0, mode === 'nine' ? 9 : 1)){
-        const packet = await buildPacket(file, password);
-        const capacity = Math.floor(gridSize*gridSize/8);
-        if(packet.length > capacity){
-          throw new Error(`${file.name} çok büyük. Paket ${(packet.length/1024).toFixed(1)} KB, seçili alan kapasitesi ${(capacity/1024).toFixed(1)} KB.`);
-        }
-        const canvas = drawCodeCanvas(packet, gridSize, mode === 'nine' ? 4 : 5);
-        cards.push({file, packet, canvas, gridSize});
+      if(!items.length) throw new Error('Önce dosya seç veya manuel kart ekle.');
+      const prepared = [];
+      for(const item of items){
+        const bytes = await getItemBytes(item);
+        if(!bytes.length) throw new Error(`${item.name} boş görünüyor.`);
+        const packet = await buildPacket({...item, bytes}, item.password || '');
+        const layout = getEffectiveLayout();
+        const gridSize = chooseGrid(layout, packet.length);
+        const capacity = Math.floor((gridSize*gridSize)/8);
+        if(packet.length > capacity) throw new Error(`${item.name} çok büyük. Paket ${(packet.length/1024).toFixed(1)} KB, bu kare kapasitesi ${(capacity/1024).toFixed(1)} KB. Yoğunluğu artır veya içeriği küçült.`);
+        const canvas = drawCodeCanvas(packet, gridSize, layout === 'single' ? 5 : 4);
+        prepared.push({ item, packet, gridSize, canvas });
       }
-      renderPaper(cards, mode, Boolean(password));
+      lastCards = prepared;
+      renderPaper(prepared, getEffectiveLayout());
       els.printBtn.disabled = false; els.downloadPngBtn.disabled = false; els.downloadSvgBtn.disabled = false;
-      currentCards = cards; currentMode = mode;
-      const summary = cards.map((c,i)=>`${i+1}. ${c.file.name}: ${(c.packet.length/1024).toFixed(2)} KB / ${(Math.floor(c.gridSize*c.gridSize/8)/1024).toFixed(2)} KB`).join('\n');
-      setEncodeStatus(`A4 hazır.\n${summary}\nOkuma notu: Otomatik mod önce kalın siyah çerçeveyi bulmaya çalışır. Manuel seçmen gerekirse sadece kalın siyah çerçeveli veri karesini seç; dıştaki ince sayfa/kart çizgisini ve başlığı alma.`);
-    }catch(err){ console.error(err); setEncodeStatus('Hata: ' + err.message); }
+      setEncodeStatus(`A4 hazır. ${prepared.length} kare yerleştirildi.\n` + prepared.map((c,i)=>`${i+1}. ${c.item.name}: paket ${(c.packet.length/1024).toFixed(2)} KB / grid ${c.gridSize}×${c.gridSize}`).join('\n'));
+    }catch(e){ console.error(e); setEncodeStatus('Hata: ' + e.message); }
   }
 
-  async function getSingleFile(){
-    const file = els.fileInput.files && els.fileInput.files[0];
-    if(file){
-      return { name: sanitizeName(els.manualName.value.trim() || file.name || 'paperpack.html'), mime: file.type || mimeFromName(file.name), bytes: new Uint8Array(await file.arrayBuffer()) };
-    }
-    const text = els.textInput.value;
-    if(!text.trim()) throw new Error('Dosya seç veya metin/HTML yapıştır.');
-    const name = sanitizeName(els.manualName.value.trim() || 'paperpack.html');
-    return { name, mime: mimeFromName(name), bytes: new TextEncoder().encode(text) };
+  async function getItemBytes(item){
+    if(item.kind === 'manual') return new TextEncoder().encode(item.text || '');
+    return item.bytes || new Uint8Array();
   }
 
-  async function getNineFiles(){
-    const list = Array.from(els.multiFileInput.files || []).slice(0,9);
-    if(!list.length) throw new Error('9 modunda en az 1 dosya seçmelisin.');
-    const out=[];
-    for(const f of list) out.push({ name:sanitizeName(f.name), mime:f.type || mimeFromName(f.name), bytes:new Uint8Array(await f.arrayBuffer()) });
-    return out;
+  async function maybeCompress(bytes, mime){
+    // Browser CompressionStream is native; no external dependency. Keep fallback uncompressed.
+    if(!('CompressionStream' in window)) return {bytes, method:null};
+    if(bytes.length < 1024) return {bytes, method:null};
+    if(!String(mime||'').startsWith('text/') && mime !== 'application/json' && mime !== 'image/svg+xml') return {bytes, method:null};
+    try{
+      const cs = new CompressionStream('gzip');
+      const writer = cs.writable.getWriter();
+      writer.write(bytes); writer.close();
+      const compressed = new Uint8Array(await new Response(cs.readable).arrayBuffer());
+      if(compressed.length + 20 < bytes.length) return {bytes:compressed, method:'gzip'};
+    }catch(_){}
+    return {bytes, method:null};
   }
 
-  function sanitizeName(name){ return (name || 'paperpack.html').replace(/[\\/\0]/g,'_').slice(0,120); }
-  function mimeFromName(name){
-    const n=(name||'').toLowerCase();
-    if(n.endsWith('.html')||n.endsWith('.htm')) return 'text/html';
-    if(n.endsWith('.css')) return 'text/css';
-    if(n.endsWith('.js')) return 'text/javascript';
-    if(n.endsWith('.json')) return 'application/json';
-    if(n.endsWith('.svg')) return 'image/svg+xml';
-    return 'text/plain';
+  async function maybeDecompress(bytes, method){
+    if(method !== 'gzip') return bytes;
+    if(!('DecompressionStream' in window)) throw new Error('Bu tarayıcı gzip çözmeyi desteklemiyor.');
+    const ds = new DecompressionStream('gzip');
+    const writer = ds.writable.getWriter();
+    writer.write(bytes); writer.close();
+    return new Uint8Array(await new Response(ds.readable).arrayBuffer());
   }
 
   async function buildPacket(file, password){
-    let payload = file.bytes;
-    const header = { v:VERSION, name:file.name, mime:file.mime, encrypted:false, compressed:false, created:new Date().toISOString() };
-    const compressed = await gzipIfUseful(payload);
-    if(compressed && compressed.length + 8 < payload.length){ payload = compressed; header.compressed = 'gzip'; }
+    const compressed = await maybeCompress(file.bytes, file.mime);
+    let payload = compressed.bytes;
+    const header = { v:VERSION, name:file.name, mime:file.mime || mimeFromName(file.name), encrypted:false, compression:compressed.method, created:new Date().toISOString() };
     if(password){
       const salt = crypto.getRandomValues(new Uint8Array(16));
       const iv = crypto.getRandomValues(new Uint8Array(12));
-      const key = await deriveKey(password, salt, ITERATIONS);
+      const key = await deriveKey(password, salt);
       payload = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, payload));
-      header.encrypted = true; header.kdf='PBKDF2-SHA256'; header.iterations=ITERATIONS; header.cipher='AES-GCM-256';
-      header.salt = bytesToBase64(salt); header.iv = bytesToBase64(iv);
+      Object.assign(header, { encrypted:true, kdf:'PBKDF2-SHA256', iterations:ITERATIONS, cipher:'AES-GCM-256', salt:bytesToBase64(salt), iv:bytesToBase64(iv) });
     }
     const headerBytes = new TextEncoder().encode(JSON.stringify(header));
-    const packet = new Uint8Array(17 + headerBytes.length + payload.length);
+    const totalLen = 17 + headerBytes.length + payload.length;
+    const packet = new Uint8Array(totalLen);
     let o=0; packet.set(MAGIC,o); o+=4; packet[o++]=VERSION;
     writeU32(packet,o,headerBytes.length); o+=4; writeU32(packet,o,payload.length); o+=4;
-    writeU32(packet,o,crc32Concat(headerBytes,payload)); o+=4; packet.set(headerBytes,o); o+=headerBytes.length; packet.set(payload,o);
+    writeU32(packet,o,crc32Concat(headerBytes,payload)); o+=4;
+    packet.set(headerBytes,o); o+=headerBytes.length; packet.set(payload,o);
     return packet;
   }
 
-  async function gzipIfUseful(bytes){
-    if(!('CompressionStream' in window)) return null;
-    try{
-      const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
-      return new Uint8Array(await new Response(stream).arrayBuffer());
-    }catch(e){ return null; }
-  }
-  async function gunzip(bytes){
-    if(!('DecompressionStream' in window)) throw new Error('Bu tarayıcı gzip çözmeyi desteklemiyor.');
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    return new Uint8Array(await new Response(stream).arrayBuffer());
-  }
-
-  async function deriveKey(password, salt, iterations){
+  async function deriveKey(password, salt){
     const baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
-    return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations, hash:'SHA-256'}, baseKey, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+    return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:ITERATIONS, hash:'SHA-256'}, baseKey, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
   }
 
   function drawCodeCanvas(packet, n, scale){
-    const quiet=8, border=4, total=n+(quiet+border)*2;
+    const quiet=8, border=5, total=n+(quiet+border)*2;
     const canvas=document.createElement('canvas'); canvas.width=total*scale; canvas.height=total*scale;
     const ctx=canvas.getContext('2d',{alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    const ox=quiet+border, oy=quiet+border;
     ctx.fillStyle='#000';
     ctx.fillRect(quiet*scale, quiet*scale, (n+border*2)*scale, border*scale);
     ctx.fillRect(quiet*scale, (quiet+border+n)*scale, (n+border*2)*scale, border*scale);
     ctx.fillRect(quiet*scale, quiet*scale, border*scale, (n+border*2)*scale);
     ctx.fillRect((quiet+border+n)*scale, quiet*scale, border*scale, (n+border*2)*scale);
-    const bits=bytesToBits(packet,n*n);
-    for(let i=0;i<n*n;i++){
-      if(bits[i]){
-        const x=i%n, y=Math.floor(i/n);
-        ctx.fillRect((ox+x)*scale,(oy+y)*scale,scale,scale);
-      }
+    // Larger corner anchors in the quiet zone help auto detection without touching data cells.
+    const anchor=border*2;
+    for(const [ax,ay] of [[quiet,quiet],[quiet+n+border*2-anchor,quiet],[quiet,quiet+n+border*2-anchor],[quiet+n+border*2-anchor,quiet+n+border*2-anchor]]){
+      ctx.fillRect(ax*scale, ay*scale, anchor*scale, anchor*scale);
     }
+    const ox=quiet+border, oy=quiet+border; const bits=bytesToBits(packet,n*n);
+    for(let i=0;i<n*n;i++){
+      if(bits[i]){ const x=i%n, y=Math.floor(i/n); ctx.fillRect((ox+x)*scale,(oy+y)*scale,scale,scale); }
+    }
+    canvas.dataset.gridSize = String(n);
     return canvas;
   }
 
   function bytesToBits(bytes, bitCount){
     const bits=new Uint8Array(bitCount);
     for(let i=0;i<bitCount;i++){
-      const bi=i>>3; let byte;
+      const bi=i>>3; let byte=0;
       if(bi<bytes.length) byte=bytes[bi];
       else { let x=(bi*1103515245+12345)>>>0; byte=(x>>>16)&255; }
       bits[i]=(byte>>(7-(i&7)))&1;
@@ -201,260 +259,331 @@
     return bytes;
   }
 
-  function renderPaper(cards, mode, encrypted){
+  function renderPaper(cards, layout){
     els.paper.innerHTML='';
-    const title=document.createElement('div'); title.className='paper-title';
-    const qrEnabled = els.includeReaderQr.checked;
-    title.innerHTML = `<div><strong>PaperPack v1</strong><span>${mode==='nine'?'9 dosya modu':'tek dosya modu'} • ${encrypted?'şifreli':'şifresiz'} • ${new Date().toLocaleString('tr-TR')}</span><span class="reader-url">${qrEnabled ? escapeHtml(els.readerLink.value || DEFAULT_READER_URL) : ''}</span></div>`;
-    if(qrEnabled){ const img=document.createElement('img'); img.className='reader-qr'; img.alt='PaperPack okuyucu linki'; img.src=DEFAULT_READER_QR; title.appendChild(img); }
-    els.paper.appendChild(title);
-    if(mode==='nine'){
-      const grid=document.createElement('div'); grid.className='nine-grid';
-      for(let i=0;i<9;i++){
-        const item=cards[i], card=document.createElement('div'); card.className='code-card';
-        if(item){ card.appendChild(metaLine(item.file.name,i+1,item.packet.length,item.gridSize)); item.canvas.className='code-canvas'; card.appendChild(item.canvas); }
-        else card.innerHTML='<div class="code-meta"><span>Boş</span><span></span></div>';
-        grid.appendChild(card);
-      }
-      els.paper.appendChild(grid);
-    }else{
-      const card=document.createElement('div'); card.className='code-card single-card';
-      card.appendChild(metaLine(cards[0].file.name,1,cards[0].packet.length,cards[0].gridSize)); cards[0].canvas.className='code-canvas'; card.appendChild(cards[0].canvas); els.paper.appendChild(card);
+    const preset = els.pagePreset.value;
+    if(els.showPageHeader.checked && preset !== 'minimal'){
+      const title=document.createElement('div'); title.className='paper-title clean-title';
+      title.innerHTML=`<div><strong>PaperPack</strong><span>${layout==='single'?'tek kare':'çoklu kare'} • ${cards.length} veri</span></div>${els.includeReaderLink.checked ? `<div class="reader-top"><span>Okuyucu</span><strong>${escapeHtml(shortUrl(els.readerLink.value))}</strong></div>` : ''}`;
+      els.paper.appendChild(title);
     }
+    if(els.includeReaderLink.checked && preset !== 'minimal'){
+      const link=document.createElement('div'); link.className='reader-strip';
+      link.innerHTML=`<div class="mini-mark">PP</div><div><b>Okumak için:</b> ${escapeHtml(els.readerLink.value || location.href)}<br><span>Siteyi aç, bu sayfadaki veri karesini okut.</span></div>`;
+      els.paper.appendChild(link);
+    }
+    if(els.globalDescription.value.trim() && (preset === 'note' || preset === 'full')){
+      const g=document.createElement('div'); g.className='global-desc'; g.textContent=els.globalDescription.value.trim(); els.paper.appendChild(g);
+    }
+    const holder=document.createElement('div');
+    if(layout==='single') holder.className='single-holder';
+    else holder.className=`multi-holder count-${els.fitNineGrid.checked ? 9 : cards.length}`;
+    const renderCount = els.fitNineGrid.checked && layout !== 'single' ? 9 : cards.length;
+    for(let i=0;i<renderCount;i++){
+      const c=cards[i]; const card=document.createElement('div'); card.className='code-card';
+      if(c){
+        if(c.item.showName || c.item.showTech || els.showGlobalTech.checked){
+          const meta=document.createElement('div'); meta.className='code-meta';
+          const left=c.item.showName ? `${i+1}. ${escapeHtml(c.item.name)}` : `${i+1}.`;
+          const right=(c.item.showTech || els.showGlobalTech.checked) ? `${c.gridSize}×${c.gridSize} • ${(c.packet.length/1024).toFixed(2)} KB${c.item.password?' • şifreli':''}` : '';
+          meta.innerHTML=`<span>${left}</span><span>${right}</span>`; card.appendChild(meta);
+        }
+        c.canvas.className='code-canvas'; card.appendChild(c.canvas);
+        if((c.item.showDescription || preset === 'note' || preset === 'full') && c.item.description.trim()){
+          const d=document.createElement('div'); d.className='card-desc'; d.textContent=c.item.description.trim(); card.appendChild(d);
+        }
+      }else card.className+=' empty-slot';
+      holder.appendChild(card);
+    }
+    els.paper.appendChild(holder);
   }
 
-  function metaLine(name,index,bytes,grid){
-    const div=document.createElement('div'); div.className='code-meta';
-    div.innerHTML=`<span>${index}. ${els.hideNames.checked?'gizli':escapeHtml(name)}</span><span>${grid}×${grid} • ${(bytes/1024).toFixed(2)} KB</span>`;
-    return div;
-  }
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function shortUrl(u){ try{ const x=new URL(u); return x.hostname + x.pathname; }catch{ return u; } }
 
   async function downloadPaperPng(){
-    const scale=2, w=els.paper.offsetWidth, h=els.paper.offsetHeight;
-    const out=document.createElement('canvas'); out.width=w*scale; out.height=h*scale;
-    const ctx=out.getContext('2d',{alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,out.width,out.height); ctx.scale(scale,scale);
-    ctx.fillStyle='#111'; ctx.font='18px Arial'; ctx.fillText('PaperPack v1',30,32);
-    if(els.includeReaderQr.checked){ await drawImageData(ctx, DEFAULT_READER_QR, w-120, 20, 84, 84); ctx.font='9px Arial'; ctx.fillText('Okuyucu', w-116, 112); }
-    const parent=els.paper.getBoundingClientRect();
-    for(const card of Array.from(els.paper.querySelectorAll('.code-card'))){
-      const r=card.getBoundingClientRect(); const x=r.left-parent.left, y=r.top-parent.top;
-      ctx.strokeStyle='#111'; ctx.lineWidth=1; ctx.strokeRect(x,y,r.width,r.height);
-      const meta=card.querySelector('.code-meta'); if(meta){ ctx.fillStyle='#111'; ctx.font='9px Arial'; ctx.fillText(meta.innerText.slice(0,100),x+6,y+13); }
-      const can=card.querySelector('canvas'); if(can){ const cr=can.getBoundingClientRect(); ctx.drawImage(can, cr.left-parent.left, cr.top-parent.top, cr.width, cr.height); }
-    }
-    out.toBlob(blob=>{ if(lastPaperBlobUrl) URL.revokeObjectURL(lastPaperBlobUrl); lastPaperBlobUrl=URL.createObjectURL(blob); downloadUrl(lastPaperBlobUrl,'paperpack-a4.png'); },'image/png');
+    const canvas = await renderPaperToCanvas(2);
+    canvas.toBlob(blob => downloadBlob(blob, 'paperpack-a4.png'), 'image/png');
   }
-  function drawImageData(ctx,src,x,y,w,h){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ctx.drawImage(im,x,y,w,h);res();}; im.src=src; }); }
-  function downloadUrl(url,name){ const a=document.createElement('a'); a.href=url; a.download=name; a.click(); }
+
+  async function renderPaperToCanvas(scale){
+    const w=794,h=1123; const c=document.createElement('canvas'); c.width=w*scale; c.height=h*scale;
+    const ctx=c.getContext('2d',{alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.scale(scale,scale);
+    const paperRect=els.paper.getBoundingClientRect();
+    ctx.fillStyle='#111'; ctx.font='16px Arial';
+    const elems=Array.from(els.paper.querySelectorAll('.paper-title,.reader-strip,.global-desc,.code-card'));
+    for(const el of elems){
+      const r=el.getBoundingClientRect(); const x=r.left-paperRect.left, y=r.top-paperRect.top;
+      if(el.classList.contains('code-card')){ ctx.strokeStyle='#111'; ctx.lineWidth=1; ctx.strokeRect(x,y,r.width,r.height); }
+      const can=el.querySelector('canvas');
+      if(can){ const cr=can.getBoundingClientRect(); ctx.drawImage(can, cr.left-paperRect.left, cr.top-paperRect.top, cr.width, cr.height); }
+      if(!can){ ctx.fillStyle='#111'; ctx.font='12px Arial'; wrapText(ctx, el.innerText, x+4, y+14, Math.max(120,r.width-8), 14); }
+      const desc=el.querySelector('.card-desc'); if(desc){ const dr=desc.getBoundingClientRect(); ctx.fillStyle='#333'; ctx.font='9px Arial'; wrapText(ctx, desc.innerText, dr.left-paperRect.left+2, dr.top-paperRect.top+10, dr.width-4, 10); }
+      const meta=el.querySelector('.code-meta'); if(meta){ const mr=meta.getBoundingClientRect(); ctx.fillStyle='#111'; ctx.font='8px Arial'; ctx.fillText(meta.innerText.slice(0,120), mr.left-paperRect.left+2, mr.top-paperRect.top+8); }
+    }
+    return c;
+  }
+  function wrapText(ctx,text,x,y,maxWidth,lineHeight){
+    const words=String(text).split(/\s+/); let line='';
+    for(const word of words){ const test=line?line+' '+word:word; if(ctx.measureText(test).width>maxWidth && line){ ctx.fillText(line,x,y); line=word; y+=lineHeight; } else line=test; }
+    if(line) ctx.fillText(line,x,y);
+  }
 
   function downloadPaperSvg(){
-    if(!currentCards.length) return;
-    const W=210, H=297;
-    let s=`<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/><text x="8" y="10" font-family="Arial" font-size="5">PaperPack v1</text>`;
-    if(els.includeReaderQr.checked) s += `<image href="${DEFAULT_READER_QR}" x="178" y="5" width="22" height="22"/>`;
-    if(currentMode==='single') s += svgCard(currentCards[0],20,32,170,170,1);
-    else { let i=0; for(let r=0;r<3;r++) for(let c=0;c<3;c++){ if(currentCards[i]) s+=svgCard(currentCards[i],8+c*66,26+r*88,60,60,i+1); i++; } }
-    s += '</svg>';
-    const url=URL.createObjectURL(new Blob([s],{type:'image/svg+xml'})); downloadUrl(url,'paperpack-a4.svg'); setTimeout(()=>URL.revokeObjectURL(url),30000);
+    const width=794,height=1123; const paperRect=els.paper.getBoundingClientRect(); let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="white"/>`;
+    for(const card of els.paper.querySelectorAll('.code-card')){
+      const r=card.getBoundingClientRect(); const x=r.left-paperRect.left, y=r.top-paperRect.top; svg+=`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${r.width.toFixed(2)}" height="${r.height.toFixed(2)}" fill="white" stroke="#111" stroke-width="1"/>`;
+      const can=card.querySelector('canvas'); if(can){ const cr=can.getBoundingClientRect(); svg += canvasToSvgRects(can, cr.left-paperRect.left, cr.top-paperRect.top, cr.width, cr.height); }
+    }
+    svg+='</svg>'; downloadBlob(new Blob([svg],{type:'image/svg+xml'}),'paperpack-a4.svg');
   }
-  function svgCard(card,x,y,w,h,index){
-    const n=card.gridSize, quiet=8, border=4, total=n+(quiet+border)*2, cell=w/total, bits=bytesToBits(card.packet,n*n);
-    let s=`<g><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" stroke="#111" stroke-width="0.2"/><text x="${x}" y="${y-1.5}" font-family="Arial" font-size="2.4">${index}. ${escapeXml(card.file.name)} ${n}x${n}</text>`;
-    s += `<rect x="${x+quiet*cell}" y="${y+quiet*cell}" width="${(n+border*2)*cell}" height="${border*cell}" fill="#000"/>`;
-    s += `<rect x="${x+quiet*cell}" y="${y+(quiet+border+n)*cell}" width="${(n+border*2)*cell}" height="${border*cell}" fill="#000"/>`;
-    s += `<rect x="${x+quiet*cell}" y="${y+quiet*cell}" width="${border*cell}" height="${(n+border*2)*cell}" fill="#000"/>`;
-    s += `<rect x="${x+(quiet+border+n)*cell}" y="${y+quiet*cell}" width="${border*cell}" height="${(n+border*2)*cell}" fill="#000"/>`;
-    const ox=x+(quiet+border)*cell, oy=y+(quiet+border)*cell;
-    for(let i=0;i<bits.length;i++) if(bits[i]){ const xx=i%n, yy=Math.floor(i/n); s += `<rect x="${(ox+xx*cell).toFixed(3)}" y="${(oy+yy*cell).toFixed(3)}" width="${cell.toFixed(3)}" height="${cell.toFixed(3)}" fill="#000"/>`; }
-    return s+'</g>';
+  function canvasToSvgRects(canvas,x,y,w,h){
+    const n=parseInt(canvas.dataset.gridSize||'0',10); if(!n) return '';
+    const ctx=canvas.getContext('2d',{willReadFrequently:true}); const img=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    let s=`<image x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" href="${canvas.toDataURL('image/png')}"/>`;
+    // Use embedded image for SVG speed; readable and self-contained. Actual code canvas remains high-res.
+    return s;
   }
-  function escapeXml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function downloadBlob(blob,name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),30000); }
 
-  async function preparePreview(){
-    const file=els.decodeImage.files && els.decodeImage.files[0];
-    preview.selection=null;
-    if(!file){ drawPreview(); return; }
-    try{ preview.img=await loadImageFromFile(file); drawPreview(); }
-    catch(e){ setDecodeStatus('Görsel önizlenemedi: '+e.message); }
+  async function loadDecodePreview(){
+    selection=null; const file=els.decodeImage.files&&els.decodeImage.files[0]; if(!file) return;
+    const img=await loadImageFromFile(file); previewImageCanvas=imageToCanvas(img); autoSelection(); redrawPreview();
   }
-  function setupPreviewSelection(){
-    const c=els.imagePreview;
-    const pos=e=>{ const r=c.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:(p.clientX-r.left)*(c.width/r.width), y:(p.clientY-r.top)*(c.height/r.height)}; };
-    const down=e=>{ if(!preview.img) return; preview.drag=true; preview.start=pos(e); preview.selection={x:preview.start.x,y:preview.start.y,w:1,h:1}; drawPreview(); e.preventDefault(); };
-    const move=e=>{ if(!preview.drag) return; const p=pos(e); preview.selection=rectFromPoints(preview.start,p); drawPreview(); e.preventDefault(); };
-    const up=()=>{ preview.drag=false; normalizeSelection(); drawPreview(); };
-    c.addEventListener('mousedown',down); window.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
-    c.addEventListener('touchstart',down,{passive:false}); window.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',up);
+  function autoSelection(){
+    if(!previewImageCanvas) return; const box=findCodeBoundingBox(previewImageCanvas); if(box) selection={x:box.x0,y:box.y0,w:box.w,h:box.h};
   }
-  function rectFromPoints(a,b){ return {x:Math.min(a.x,b.x), y:Math.min(a.y,b.y), w:Math.abs(a.x-b.x), h:Math.abs(a.y-b.y)}; }
-  function normalizeSelection(){ if(!preview.selection || preview.selection.w<10 || preview.selection.h<10) preview.selection=null; }
-  function drawPreview(){
-    const c=els.imagePreview, ctx=c.getContext('2d');
-    if(!preview.img){ c.width=1;c.height=1;ctx.clearRect(0,0,1,1); els.selectionInfo.textContent='Görsel yükleyince burada önizleme çıkar.'; return; }
-    const maxW=Math.min(900, c.parentElement.clientWidth || 900), scale=Math.min(1,maxW/(preview.img.naturalWidth||preview.img.width));
-    c.width=Math.round((preview.img.naturalWidth||preview.img.width)*scale); c.height=Math.round((preview.img.naturalHeight||preview.img.height)*scale);
-    preview.scaleX=(preview.img.naturalWidth||preview.img.width)/c.width; preview.scaleY=(preview.img.naturalHeight||preview.img.height)/c.height;
-    ctx.drawImage(preview.img,0,0,c.width,c.height);
-    if(preview.selection){ ctx.save(); ctx.strokeStyle='#e00000'; ctx.lineWidth=3; ctx.setLineDash([8,4]); ctx.strokeRect(preview.selection.x,preview.selection.y,preview.selection.w,preview.selection.h); ctx.restore(); els.selectionInfo.textContent='Seçim aktif. En iyi seçim: sadece kalın siyah çerçeveli veri karesi; dıştaki ince kart çizgisi ve başlık dahil olmasın.'; }
-    else els.selectionInfo.textContent='Otomatik okuma başarısız olursa kalın siyah çerçeveli veri karesini seç. Siyah kalın çerçeve dahil, başlık ve dış ince çerçeve hariç.';
+  function redrawPreview(){
+    if(!previewImageCanvas){ const ctx=els.imagePreview.getContext('2d'); ctx.clearRect(0,0,els.imagePreview.width,els.imagePreview.height); return; }
+    const maxW=els.imagePreview.parentElement.clientWidth||800; const sc=Math.min(1,maxW/previewImageCanvas.width);
+    els.imagePreview.width=Math.round(previewImageCanvas.width*sc); els.imagePreview.height=Math.round(previewImageCanvas.height*sc);
+    const ctx=els.imagePreview.getContext('2d'); ctx.drawImage(previewImageCanvas,0,0,els.imagePreview.width,els.imagePreview.height);
+    if(selection){ ctx.strokeStyle='#18a058'; ctx.lineWidth=3; ctx.strokeRect(selection.x*sc,selection.y*sc,selection.w*sc,selection.h*sc); els.selectionInfo.textContent='Yeşil çerçeve doğru veri karesini kapsıyorsa Oku butonuna bas.'; }
   }
+  function posFromEvent(e){ const r=els.imagePreview.getBoundingClientRect(); const scX=previewImageCanvas.width/r.width, scY=previewImageCanvas.height/r.height; return {x:(e.clientX-r.left)*scX, y:(e.clientY-r.top)*scY}; }
+  function startSelection(e){ if(!previewImageCanvas) return; dragStart=posFromEvent(e); selection={x:dragStart.x,y:dragStart.y,w:1,h:1}; els.imagePreview.setPointerCapture(e.pointerId); }
+  function moveSelection(e){ if(!dragStart||!previewImageCanvas) return; const p=posFromEvent(e); selection={x:Math.min(dragStart.x,p.x),y:Math.min(dragStart.y,p.y),w:Math.abs(p.x-dragStart.x),h:Math.abs(p.y-dragStart.y)}; redrawPreview(); }
+  function endSelection(){ dragStart=null; redrawPreview(); }
 
   async function decodeImageInput(){
     try{
+      els.decodeResults.innerHTML=''; const file=els.decodeImage.files&&els.decodeImage.files[0]; if(!file) throw new Error('Önce görsel yükle veya fotoğraf çek.');
+      setDecodeStatus('Okunuyor...'); const img=await loadImageFromFile(file); const full=imageToCanvas(img);
+      const packets = decodePacketsFromCanvas(full, true);
+      if(!packets.length) throw new Error('PaperPack verisi bulunamadı. Fotoğrafı daha yakın, net ve kare görünür şekilde çek. Otomatik olmazsa veri karesinin 4 köşesi görünür olsun.');
+      setDecodeStatus(`${packets.length} paket bulundu.`); packets.forEach(addResultCard);
+    }catch(e){ console.error(e); setDecodeStatus('Hata: '+e.message); }
+  }
+
+  function decodePacketsFromCanvas(full, includeSelection){
+    let candidates=[];
+    if(els.decodeArea.value !== 'selected') candidates.push(full);
+    if(includeSelection && selection && els.decodeArea.value !== 'full') candidates.push(cropCanvas(full,selection.x,selection.y,selection.w,selection.h));
+    const packets=[]; let tries=0;
+    for(const c of candidates){
+      const mode=els.decodeMode.value;
+      const list = mode==='multi' ? splitMultiCandidates(c) : mode==='single' ? [c] : [c,...splitMultiCandidates(c)];
+      for(const part of list){ tries++; const found=decodeAllFromCanvas(part); for(const p of found){ if(!packets.some(x=>x.header.name===p.header.name && x.payload.length===p.payload.length)) packets.push(p); } }
+    }
+    packets._tries = tries;
+    return packets;
+  }
+  async function startCameraScan(){
+    try{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Bu tarayıcı kamera erişimini desteklemiyor.');
+      scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080}}, audio:false});
+      els.scanVideo.srcObject = scanStream;
+      await els.scanVideo.play();
+      els.cameraStage.classList.remove('hidden');
+      els.captureScanBtn.disabled=false; els.autoScanBtn.disabled=false; els.stopCameraBtn.disabled=false; els.startCameraBtn.disabled=true;
+      els.scanHint.textContent='Kareyi kılavuz çerçevenin içine getir. Netleşince Şimdi tara veya Otomatik tara kullan.';
+    }catch(e){ setDecodeStatus('Kamera açılamadı: '+e.message); }
+  }
+  function stopCameraScan(){
+    if(autoScanTimer){ clearInterval(autoScanTimer); autoScanTimer=null; }
+    if(scanStream){ for(const t of scanStream.getTracks()) t.stop(); scanStream=null; }
+    els.scanVideo.srcObject=null; els.cameraStage.classList.add('hidden');
+    els.captureScanBtn.disabled=true; els.autoScanBtn.disabled=true; els.stopCameraBtn.disabled=true; els.startCameraBtn.disabled=false; els.autoScanBtn.textContent='Otomatik tara';
+  }
+  async function captureAndDecodeFromCamera(){
+    try{
+      const canvas=cameraFrameToCanvas();
+      if(!canvas) throw new Error('Kamera görüntüsü alınamadı.');
+      setDecodeStatus('Kamera görüntüsü okunuyor...');
       els.decodeResults.innerHTML='';
-      const file=els.decodeImage.files && els.decodeImage.files[0];
-      if(!file) throw new Error('Önce bir görsel yükle veya fotoğraf çek.');
-      setDecodeStatus('Görsel hazırlanıyor...'); await tick();
-      const img=preview.img || await loadImageFromFile(file);
-      const full=imageToCanvas(img,1600);
-      const canvases=[];
-      if(preview.selection && els.decodeArea.value!=='full') canvases.push({name:'seçili alan', canvas:cropFromPreviewSelection(img)});
-      if(els.decodeArea.value!=='selected') canvases.push({name:'tam görsel', canvas:full});
-      const packets=[]; let attempts=0;
-      for(const item of canvases){
-        setDecodeStatus(`${item.name} taranıyor...`); await tick();
-        const found = els.decodeMode.value==='nine' ? decodeNineFromCanvas(item.canvas) : decodeAutoFromCanvas(item.canvas);
-        attempts += found.attempts; packets.push(...found.packets);
-        if(packets.length && els.decodeMode.value!=='nine') break;
-      }
-      if(!packets.length) throw new Error(`PaperPack verisi bulunamadı. Denenen alan: ${attempts}. Manuel seçimde kalın siyah çerçeveyi dahil et, dış ince kart çerçevesini alma.`);
-      setDecodeStatus(`${packets.length} paket bulundu. Deneme: ${attempts}.`);
-      const unique=[]; const keys=new Set();
-      for(const p of packets){ const k=(p.header.name||'')+':'+p.payload.length+':'+(p.header.created||''); if(!keys.has(k)){keys.add(k); unique.push(p);} }
-      unique.forEach(addResultCard);
-    }catch(err){ console.error(err); setDecodeStatus('Hata: '+err.message); }
+      const packets=decodePacketsFromCanvas(canvas,false);
+      if(!packets.length) throw new Error('Veri bulunamadı. Kareyi daha yakın, düz ve net tut. Işık/gölgeyi kontrol et.');
+      setDecodeStatus(`${packets.length} paket bulundu.`); packets.forEach(addResultCard);
+      if(autoScanTimer) toggleAutoScan();
+    }catch(e){ setDecodeStatus('Hata: '+e.message); }
+  }
+  function toggleAutoScan(){
+    if(autoScanTimer){ clearInterval(autoScanTimer); autoScanTimer=null; els.autoScanBtn.textContent='Otomatik tara'; return; }
+    els.autoScanBtn.textContent='Taramayı durdur';
+    autoScanTimer=setInterval(async()=>{
+      if(autoScanBusy) return; autoScanBusy=true;
+      try{
+        const canvas=cameraFrameToCanvas();
+        if(canvas){
+          const packets=decodePacketsFromCanvas(canvas,false);
+          if(packets.length){
+            els.decodeResults.innerHTML=''; setDecodeStatus(`${packets.length} paket bulundu.`); packets.forEach(addResultCard); toggleAutoScan();
+          }else setDecodeStatus('Canlı tarama sürüyor... Kareyi ortala, net ve büyük tut.');
+        }
+      }catch(_){ }
+      finally{ autoScanBusy=false; }
+    }, 1200);
+  }
+  function cameraFrameToCanvas(){
+    const v=els.scanVideo; if(!v || !v.videoWidth) return null;
+    const max=1800; const sc=Math.min(1,max/Math.max(v.videoWidth,v.videoHeight));
+    const c=document.createElement('canvas'); c.width=Math.round(v.videoWidth*sc); c.height=Math.round(v.videoHeight*sc);
+    const ctx=c.getContext('2d',{willReadFrequently:true,alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(v,0,0,c.width,c.height); return c;
   }
 
-  function cropFromPreviewSelection(img){
-    const sel=preview.selection; const sx=sel.x*preview.scaleX, sy=sel.y*preview.scaleY, sw=sel.w*preview.scaleX, sh=sel.h*preview.scaleY;
-    const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(sw)); c.height=Math.max(1,Math.round(sh));
-    c.getContext('2d',{willReadFrequently:true,alpha:false}).drawImage(img,sx,sy,sw,sh,0,0,c.width,c.height);
-    return c;
+  function splitMultiCandidates(canvas){
+    const out=[]; const sizes=[2,3];
+    for(const s of sizes){ for(let y=0;y<s;y++) for(let x=0;x<s;x++) out.push(cropCanvas(canvas,x*canvas.width/s,y*canvas.height/s,canvas.width/s,canvas.height/s)); }
+    return out;
   }
+  async function loadImageFromFile(file){ const url=URL.createObjectURL(file); try{ const img=new Image(); img.decoding='async'; await new Promise((res,rej)=>{img.onload=res; img.onerror=()=>rej(new Error('Görsel yüklenemedi.')); img.src=url;}); return img; } finally{ setTimeout(()=>URL.revokeObjectURL(url),1000); } }
+  function imageToCanvas(img){ const max=2400; const sw=img.naturalWidth||img.width, sh=img.naturalHeight||img.height; const sc=Math.min(1,max/Math.max(sw,sh)); const c=document.createElement('canvas'); c.width=Math.round(sw*sc); c.height=Math.round(sh*sc); const ctx=c.getContext('2d',{willReadFrequently:true,alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); return c; }
+  function cropCanvas(src,x,y,w,h){ const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w)); c.height=Math.max(1,Math.round(h)); const ctx=c.getContext('2d',{willReadFrequently:true,alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(src,x,y,w,h,0,0,c.width,c.height); return c; }
 
-  function decodeAutoFromCanvas(canvas){
-    const packets=[], candidates=buildCandidates(canvas); let attempts=0;
-    for(const bbox of candidates){
-      for(const n of TRY_GRIDS){
-        for(const mode of ['border','direct']){
-          attempts++;
-          try{ const p=parsePacket(bitsToBytes(sampleGrid(canvas,bbox,n,mode))); if(p) return {packets:[p], attempts}; }
-          catch(e){ /* try next */ }
+  function decodeAllFromCanvas(canvas){
+    const out=[];
+    const candidates=[];
+    const quad=findCodeQuad(canvas);
+    if(quad){
+      try{ candidates.push({canvas:warpQuadToCanvas(canvas, quad.points, 1536), warped:true}); }catch(_){ }
+    }
+    candidates.push({canvas, warped:false});
+    for(const cand of candidates){
+      const boxes=findAllCodeBoxes(cand.canvas).slice(0,10);
+      for(const bbox of boxes){
+        for(const n of TRY_GRIDS){
+          try{ const bits=sampleGrid(cand.canvas,bbox,n); const p=parsePacket(bitsToBytes(bits)); if(p && !out.some(x=>x.header.name===p.header.name && x.payload.length===p.payload.length)) out.push(p); }
+          catch(_){}
         }
       }
+      if(out.length) break;
     }
-    return {packets, attempts};
+    return out;
   }
-  function decodeNineFromCanvas(canvas){
-    const packets=[]; let attempts=0;
-    // First try auto as a whole, then 3x3 cells. This handles both full A4 and a manually selected cell.
-    const a=decodeAutoFromCanvas(canvas); attempts+=a.attempts; packets.push(...a.packets);
-    for(let r=0;r<3;r++) for(let c=0;c<3;c++){
-      const crop=cropCanvas(canvas,c*canvas.width/3,r*canvas.height/3,canvas.width/3,canvas.height/3);
-      const b=decodeAutoFromCanvas(crop); attempts+=b.attempts; packets.push(...b.packets);
+  function decodeFromCanvas(canvas){ const all=decodeAllFromCanvas(canvas); return all[0] || null; }
+  function findCodeQuad(canvas){
+    const box=findCodeBoundingBox(canvas); if(!box) return null;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true}); const img=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    const pts=[]; const step=Math.max(1,Math.floor(Math.min(box.w,box.h)/500));
+    for(let y=box.y0;y<=box.y1;y+=step){ for(let x=box.x0;x<=box.x1;x+=step){ const i=(y*canvas.width+x)*4; if(img[i]+img[i+1]+img[i+2]<430) pts.push({x,y}); } }
+    if(pts.length<40) return null;
+    let tl=pts[0],tr=pts[0],br=pts[0],bl=pts[0];
+    for(const p of pts){
+      if(p.x+p.y < tl.x+tl.y) tl=p;
+      if(p.x-p.y > tr.x-tr.y) tr=p;
+      if(p.x+p.y > br.x+br.y) br=p;
+      if(p.y-p.x > bl.y-bl.x) bl=p;
     }
-    return {packets, attempts};
+    const area=Math.abs((tr.x-tl.x)*(bl.y-tl.y)-(tr.y-tl.y)*(bl.x-tl.x));
+    if(area < 1000) return null;
+    return {points:[tl,tr,br,bl], box};
   }
-
-  function buildCandidates(canvas){
-    const out=[]; const bbox=findCodeBoundingBox(canvas); if(bbox) out.push(bbox);
-    // If the image is already a close crop, full area is useful.
-    out.push({x0:0,y0:0,x1:canvas.width-1,y1:canvas.height-1,w:canvas.width,h:canvas.height});
+  function warpQuadToCanvas(src, pts, size){
+    const dst=[{x:0,y:0},{x:size-1,y:0},{x:size-1,y:size-1},{x:0,y:size-1}];
+    const H=homographyFromSquareToQuad(dst, pts);
+    const out=document.createElement('canvas'); out.width=size; out.height=size;
+    const sctx=src.getContext('2d',{willReadFrequently:true}); const simg=sctx.getImageData(0,0,src.width,src.height).data;
+    const octx=out.getContext('2d',{willReadFrequently:true,alpha:false}); const oimg=octx.createImageData(size,size); const data=oimg.data;
+    for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+      const d=H[6]*x+H[7]*y+1; const sx=(H[0]*x+H[1]*y+H[2])/d; const sy=(H[3]*x+H[4]*y+H[5])/d;
+      const col=sampleBilinear(simg,src.width,src.height,sx,sy); const idx=(y*size+x)*4; data[idx]=col[0]; data[idx+1]=col[1]; data[idx+2]=col[2]; data[idx+3]=255;
+    }
+    octx.putImageData(oimg,0,0); return out;
+  }
+  function homographyFromSquareToQuad(srcPts,dstPts){
+    const A=[], b=[];
+    for(let i=0;i<4;i++){
+      const x=srcPts[i].x,y=srcPts[i].y,u=dstPts[i].x,v=dstPts[i].y;
+      A.push([x,y,1,0,0,0,-u*x,-u*y]); b.push(u);
+      A.push([0,0,0,x,y,1,-v*x,-v*y]); b.push(v);
+    }
+    return solve8(A,b).concat([1]);
+  }
+  function solve8(A,b){
+    const n=8; const M=A.map((r,i)=>r.concat([b[i]]));
+    for(let c=0;c<n;c++){
+      let piv=c; for(let r=c+1;r<n;r++) if(Math.abs(M[r][c])>Math.abs(M[piv][c])) piv=r;
+      if(Math.abs(M[piv][c])<1e-9) throw new Error('Perspektif çözülemedi.');
+      [M[c],M[piv]]=[M[piv],M[c]]; const div=M[c][c]; for(let k=c;k<=n;k++) M[c][k]/=div;
+      for(let r=0;r<n;r++){ if(r===c) continue; const f=M[r][c]; for(let k=c;k<=n;k++) M[r][k]-=f*M[c][k]; }
+    }
+    return M.map(r=>r[n]);
+  }
+  function sampleBilinear(img,w,h,x,y){
+    x=Math.max(0,Math.min(w-1,x)); y=Math.max(0,Math.min(h-1,y));
+    const x0=Math.floor(x), y0=Math.floor(y), x1=Math.min(w-1,x0+1), y1=Math.min(h-1,y0+1); const dx=x-x0,dy=y-y0;
+    const i00=(y0*w+x0)*4,i10=(y0*w+x1)*4,i01=(y1*w+x0)*4,i11=(y1*w+x1)*4; const out=[0,0,0];
+    for(let c=0;c<3;c++) out[c]=Math.round(img[i00+c]*(1-dx)*(1-dy)+img[i10+c]*dx*(1-dy)+img[i01+c]*(1-dx)*dy+img[i11+c]*dx*dy);
     return out;
   }
 
-  function imageToCanvas(img,max){
-    const scale=Math.min(1,max/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
-    const c=document.createElement('canvas'); c.width=Math.round((img.naturalWidth||img.width)*scale); c.height=Math.round((img.naturalHeight||img.height)*scale);
-    const ctx=c.getContext('2d',{willReadFrequently:true,alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); return c;
+  function findAllCodeBoxes(canvas){
+    const main=findCodeBoundingBox(canvas); const arr=[]; if(main) arr.push(main);
+    arr.push({x0:0,y0:0,x1:canvas.width-1,y1:canvas.height-1,w:canvas.width,h:canvas.height});
+    return arr;
   }
-  function cropCanvas(src,x,y,w,h){ const c=document.createElement('canvas'); c.width=Math.round(w); c.height=Math.round(h); c.getContext('2d',{willReadFrequently:true,alpha:false}).drawImage(src,x,y,w,h,0,0,c.width,c.height); return c; }
-  async function loadImageFromFile(file){ const url=URL.createObjectURL(file); try{ const img=new Image(); img.decoding='async'; await new Promise((res,rej)=>{img.onload=res; img.onerror=()=>rej(new Error('Görsel yüklenemedi.')); img.src=url;}); return img; } finally { setTimeout(()=>URL.revokeObjectURL(url),1000); } }
-
   function findCodeBoundingBox(canvas){
-    const ctx=canvas.getContext('2d',{willReadFrequently:true}); const w=canvas.width,h=canvas.height; const data=ctx.getImageData(0,0,w,h).data;
-    const row=new Uint32Array(h), col=new Uint32Array(w);
-    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const i=(y*w+x)*4; if((data[i]+data[i+1]+data[i+2])<420){ row[y]++; col[x]++; } }
-    const yi=largestDenseInterval(row,w,0.18), xi=largestDenseInterval(col,h,0.18); if(!xi||!yi) return null;
-    let [x0,x1]=xi, [y0,y1]=yi; const bw=x1-x0+1,bh=y1-y0+1; if(bw<70||bh<70) return null;
-    const pad=Math.round(Math.min(bw,bh)*0.01);
-    x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad); x1=Math.min(w-1,x1+pad); y1=Math.min(h-1,y1+pad);
-    return {x0,y0,x1,y1,w:x1-x0+1,h:y1-y0+1};
+    const ctx=canvas.getContext('2d',{willReadFrequently:true}); const {width:w,height:h}=canvas; const img=ctx.getImageData(0,0,w,h).data; const row=new Uint32Array(h), col=new Uint32Array(w);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const i=(y*w+x)*4; if(img[i]+img[i+1]+img[i+2]<430){ row[y]++; col[x]++; } }
+    const yInt=largestDenseInterval(row,w,0.08), xInt=largestDenseInterval(col,h,0.08); if(!xInt||!yInt) return null;
+    const x0=xInt[0],x1=xInt[1],y0=yInt[0],y1=yInt[1],bw=x1-x0+1,bh=y1-y0+1; if(bw<80||bh<80) return null; return {x0,y0,x1,y1,w:bw,h:bh};
   }
   function largestDenseInterval(counts,denom,density){
-    const min=Math.max(4,Math.floor(denom*density)); let best=null,start=-1;
-    for(let i=0;i<counts.length;i++){
-      const ok=counts[i]>=min;
-      if(ok&&start<0) start=i;
-      if((!ok||i===counts.length-1)&&start>=0){ const end=ok&&i===counts.length-1?i:i-1; if(!best||end-start>best[1]-best[0]) best=[start,end]; start=-1; }
-    }
+    const min=Math.max(5,Math.floor(denom*density)); let best=null,start=-1;
+    for(let i=0;i<counts.length;i++){ const ok=counts[i]>=min; if(ok&&start<0)start=i; if((!ok||i===counts.length-1)&&start>=0){ const end=ok&&i===counts.length-1?i:i-1; if(!best||end-start>best[1]-best[0]) best=[start,end]; start=-1; } }
     return best;
   }
-
-  function sampleGrid(canvas,bbox,n,mode){
+  function sampleGrid(canvas,bbox,n){
     const ctx=canvas.getContext('2d',{willReadFrequently:true}); const img=ctx.getImageData(0,0,canvas.width,canvas.height).data; const bits=new Uint8Array(n*n);
-    let cellW,cellH,ox,oy;
-    if(mode==='border'){
-      const total=n+8; cellW=bbox.w/total; cellH=bbox.h/total; ox=bbox.x0+cellW*4; oy=bbox.y0+cellH*4;
-    }else{
-      cellW=bbox.w/n; cellH=bbox.h/n; ox=bbox.x0; oy=bbox.y0;
-    }
+    const total=n+10; const cellW=bbox.w/total, cellH=bbox.h/total; const ox=bbox.x0+cellW*5, oy=bbox.y0+cellH*5;
     for(let y=0;y<n;y++) for(let x=0;x<n;x++){
-      const cx=clamp(Math.round(ox+(x+0.5)*cellW),0,canvas.width-1), cy=clamp(Math.round(oy+(y+0.5)*cellH),0,canvas.height-1);
-      let sum=0,count=0,rad=Math.max(1,Math.floor(Math.min(cellW,cellH)*0.18));
-      for(let yy=-rad; yy<=rad; yy++) for(let xx=-rad; xx<=rad; xx++){ const sx=clamp(cx+xx,0,canvas.width-1), sy=clamp(cy+yy,0,canvas.height-1); const i=(sy*canvas.width+sx)*4; sum+=img[i]+img[i+1]+img[i+2]; count++; }
+      const cx=Math.max(0,Math.min(canvas.width-1,Math.round(ox+(x+.5)*cellW))); const cy=Math.max(0,Math.min(canvas.height-1,Math.round(oy+(y+.5)*cellH)));
+      let sum=0,count=0; const rad=Math.max(1,Math.floor(Math.min(cellW,cellH)*0.18));
+      for(let yy=-rad;yy<=rad;yy++) for(let xx=-rad;xx<=rad;xx++){ const sx=Math.max(0,Math.min(canvas.width-1,cx+xx)); const sy=Math.max(0,Math.min(canvas.height-1,cy+yy)); const i=(sy*canvas.width+sx)*4; sum+=img[i]+img[i+1]+img[i+2]; count++; }
       bits[y*n+x]=(sum/count)<390?1:0;
     }
     return bits;
   }
-  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
-
   function parsePacket(bytes){
     if(bytes[0]!==MAGIC[0]||bytes[1]!==MAGIC[1]||bytes[2]!==MAGIC[2]||bytes[3]!==MAGIC[3]) return null;
     if(bytes[4]!==VERSION) throw new Error('Desteklenmeyen PaperPack sürümü.');
     const headerLen=readU32(bytes,5), payloadLen=readU32(bytes,9), crcStored=readU32(bytes,13), start=17;
     if(headerLen<=0||headerLen>4000||payloadLen<0||start+headerLen+payloadLen>bytes.length) return null;
     const headerBytes=bytes.slice(start,start+headerLen), payload=bytes.slice(start+headerLen,start+headerLen+payloadLen);
-    if(crc32Concat(headerBytes,payload)!==crcStored) throw new Error('Checksum uyuşmadı.');
+    if(crc32Concat(headerBytes,payload)!==crcStored) throw new Error('Checksum uyuşmadı. Görsel net değil veya kare yanlış okundu.');
     return {header:JSON.parse(new TextDecoder().decode(headerBytes)), payload};
   }
 
   function addResultCard(packet){
-    const node=els.resultTemplate.content.firstElementChild.cloneNode(true), h=node.querySelector('h3'), meta=node.querySelector('.meta'), dec=node.querySelector('.decrypt-zone'), open=node.querySelector('.open-zone'), err=node.querySelector('.error');
-    h.textContent=packet.header.name||'paperpack.html';
-    meta.textContent=`${packet.header.mime||'application/octet-stream'} • ${packet.header.encrypted?'şifreli':'şifresiz'} • ${packet.header.compressed?'gzip • ':''}${(packet.payload.length/1024).toFixed(2)} KB`;
-    if(packet.header.encrypted){
-      dec.classList.remove('hidden');
-      node.querySelector('.decrypt-open-btn').onclick=async()=>{
-        const win=window.open('about:blank','_blank');
-        try{ const pass=node.querySelector('.result-password').value; if(!pass) throw new Error('Şifre girilmedi.'); const clear=await prepareClearPayload(packet,pass); const url=createBlobUrl(clear,packet.header); if(win) win.location.href=url; addOpenHandler(node,clear,packet.header); addDownloadHandler(node,clear,packet.header); open.classList.remove('hidden'); dec.classList.add('hidden'); }
-        catch(e){ if(win) win.close(); err.textContent='Açılamadı: '+e.message; err.classList.remove('hidden'); }
-      };
-    }else{
-      open.classList.remove('hidden');
-      prepareClearPayload(packet,'').then(clear=>{ addOpenHandler(node,clear,packet.header); addDownloadHandler(node,clear,packet.header); }).catch(e=>{err.textContent='Açılamadı: '+e.message; err.classList.remove('hidden');});
-    }
+    const node=els.resultTemplate.content.firstElementChild.cloneNode(true); const h=node.querySelector('h3'), meta=node.querySelector('.meta'), dz=node.querySelector('.decrypt-zone'), oz=node.querySelector('.open-zone'), err=node.querySelector('.error');
+    h.textContent=packet.header.name||'paperpack.html'; meta.textContent=`${packet.header.mime||'application/octet-stream'} • ${packet.header.encrypted?'şifreli':'şifresiz'} • ${packet.header.compression?'gzip':''} • ${(packet.payload.length/1024).toFixed(2)} KB`;
+    if(packet.header.encrypted){ dz.classList.remove('hidden'); node.querySelector('.decrypt-open-btn').addEventListener('click',async()=>{ const win=window.open('about:blank','_blank'); try{ const pass=node.querySelector('.result-password').value; if(!pass) throw new Error('Şifre girilmedi.'); let clear=await decryptPayload(packet,pass); clear=await maybeDecompress(clear,packet.header.compression); const url=createBlobUrl(clear,packet.header); if(win) win.location.href=url; addOpenHandler(node,clear,packet.header); addDownloadHandler(node,clear,packet.header); oz.classList.remove('hidden'); dz.classList.add('hidden'); }catch(e){ if(win)win.close(); err.textContent='Açılamadı: '+e.message; err.classList.remove('hidden'); } }); }
+    else { oz.classList.remove('hidden'); (async()=>{ const clear=await maybeDecompress(packet.payload,packet.header.compression); addOpenHandler(node,clear,packet.header); addDownloadHandler(node,clear,packet.header); })().catch(e=>{err.textContent=e.message;err.classList.remove('hidden');}); }
     els.decodeResults.appendChild(node);
   }
-
-  async function prepareClearPayload(packet,password){
-    let bytes=packet.payload;
-    if(packet.header.encrypted){ const salt=base64ToBytes(packet.header.salt), iv=base64ToBytes(packet.header.iv), key=await deriveKey(password,salt,packet.header.iterations||ITERATIONS); bytes=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},key,bytes)); }
-    if(packet.header.compressed==='gzip') bytes=await gunzip(bytes);
-    return bytes;
-  }
-  function addOpenHandler(node,bytes,header){ node.querySelector('.open-btn').onclick=()=>{ window.open(createBlobUrl(bytes,header),'_blank'); }; }
-  function addDownloadHandler(node,bytes,header){ node.querySelector('.download-btn').onclick=()=>{ const url=createBlobUrl(bytes,header); downloadUrl(url,header.name||'paperpack.bin'); setTimeout(()=>URL.revokeObjectURL(url),30000); }; }
+  async function decryptPayload(packet,password){ const salt=base64ToBytes(packet.header.salt), iv=base64ToBytes(packet.header.iv), key=await deriveKey(password,salt); return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},key,packet.payload)); }
+  function addOpenHandler(node,bytes,header){ node.querySelector('.open-btn').onclick=()=>{ const url=createBlobUrl(bytes,header); window.open(url,'_blank'); }; }
+  function addDownloadHandler(node,bytes,header){ node.querySelector('.download-btn').onclick=()=>{ const url=createBlobUrl(bytes,header); const a=document.createElement('a'); a.href=url; a.download=header.name||'paperpack.bin'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),30000); }; }
   function createBlobUrl(bytes,header){ return URL.createObjectURL(new Blob([bytes],{type:header.mime||'application/octet-stream'})); }
 
-  function writeU32(arr,o,v){ arr[o]=(v>>>24)&255; arr[o+1]=(v>>>16)&255; arr[o+2]=(v>>>8)&255; arr[o+3]=v&255; }
-  function readU32(arr,o){ return ((arr[o]<<24)|(arr[o+1]<<16)|(arr[o+2]<<8)|arr[o+3])>>>0; }
+  function sanitizeName(name){ return (name||'paperpack.html').replace(/[\\/\0]/g,'_').slice(0,120); }
+  function mimeFromName(name){ const n=(name||'').toLowerCase(); if(n.endsWith('.html')||n.endsWith('.htm')) return 'text/html'; if(n.endsWith('.css')) return 'text/css'; if(n.endsWith('.js')) return 'text/javascript'; if(n.endsWith('.json')) return 'application/json'; if(n.endsWith('.svg')) return 'image/svg+xml'; return 'text/plain'; }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function writeU32(a,o,v){ a[o]=(v>>>24)&255; a[o+1]=(v>>>16)&255; a[o+2]=(v>>>8)&255; a[o+3]=v&255; }
+  function readU32(a,o){ return ((a[o]<<24)|(a[o+1]<<16)|(a[o+2]<<8)|a[o+3])>>>0; }
   const CRC_TABLE=(()=>{ const t=new Uint32Array(256); for(let i=0;i<256;i++){ let c=i; for(let k=0;k<8;k++) c=c&1?0xedb88320^(c>>>1):c>>>1; t[i]=c>>>0; } return t; })();
   function crc32Concat(a,b){ let crc=0xffffffff; for(const arr of [a,b]) for(let i=0;i<arr.length;i++) crc=CRC_TABLE[(crc^arr[i])&255]^(crc>>>8); return (crc^0xffffffff)>>>0; }
   function bytesToBase64(bytes){ let s=''; for(let i=0;i<bytes.length;i++) s+=String.fromCharCode(bytes[i]); return btoa(s); }
-  function base64ToBytes(b64){ const s=atob(b64); const out=new Uint8Array(s.length); for(let i=0;i<s.length;i++) out[i]=s.charCodeAt(i); return out; }
-  function tick(){ return new Promise(r=>setTimeout(r,0)); }
+  function base64ToBytes(b64){ const s=atob(b64), out=new Uint8Array(s.length); for(let i=0;i<s.length;i++) out[i]=s.charCodeAt(i); return out; }
   function setEncodeStatus(s){ els.encodeStatus.textContent=s; }
   function setDecodeStatus(s){ els.decodeStatus.textContent=s; }
 })();

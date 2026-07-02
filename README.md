@@ -1,39 +1,60 @@
-# PaperPack v6
+# PaperPack Web MVP v12
 
-PaperPack, küçük HTML/TXT/kod dosyalarını A4 üzerine basılabilir siyah-beyaz veri desenine çeviren ve aynı sayfayı tekrar okuyarak dosyayı geri açan bağımlılıksız statik web uygulamasıdır.
+PaperPack, küçük HTML/TXT/kod dosyalarını A4 üzerinde basılabilir veri karelerine dönüştüren ve aynı web uygulamasıyla geri okuyan statik, bağımlılıksız bir web uygulamasıdır.
 
-## Özellikler
+## v12 öne çıkanlar
 
-- npm, build, backend, veritabanı, CDN yok.
-- GitHub Pages uyumlu statik dosyalar.
-- Tek büyük A4 modu ve 9 kutulu A4 modu.
-- Opsiyonel AES-GCM şifreleme.
-- Destekleyen tarayıcılarda gzip sıkıştırma.
-- PNG/SVG çıktı.
-- A4 üstüne opsiyonel okuyucu link QR'ı.
-- Fotoğraf/görsel yükleyerek okuma.
-- Otomatik veri alanı algılama + manuel alan seçimi.
-- Şifre doğruysa HTML/dosya yeni sekmede Blob URL ile açılır.
+- Telefon için canlı kamera okuma modu eklendi.
+- `Kamerayı aç`, `Şimdi tara`, `Otomatik tara`, `Kamerayı kapat` akışı eklendi.
+- Fotoğraf ve kamera okumasında perspektif düzeltme denemesi eklendi.
+- Yamuk çekilen kareyi düz kareye çevirip okuma denemesi yapar.
+- Otomatik tarama 1.2 saniyede bir görüntü alıp çözer.
+- v11’deki esnek çoklu dosya/kart yapısı korundu.
+- Maksimum 9 kare/dosya, zorunlu 9 değil.
+- Her kare için ayrı dosya adı, açıklama, şifre ve gösterim ayarı korunur.
 
-## Önemli okuma notu
+## Kurulum
 
-Manuel seçim gerekirse **kalın siyah çerçeveli veri karesini** seçin. Siyah kalın çerçeve dahil olmalı; dıştaki ince kart/sayfa çizgisi ve başlık dahil edilmemeli.
+Hiçbir kurulum gerekmez. GitHub Pages üzerinde yayınlanabilir.
 
-## GitHub Pages
+Dosyalar:
 
-Repo kök dizininde `index.html`, `style.css`, `app.js`, `manifest.webmanifest`, `sw.js` dosyaları varsa:
+- `index.html`
+- `style.css`
+- `app.js`
+- `README.md`
+- opsiyonel PWA dosyaları: `manifest.webmanifest`, `sw.js`
 
-1. GitHub repo → Settings → Pages
-2. Source: Deploy from a branch
-3. Branch: main / root
-4. Save
+## Kullanım
 
-## Local test
+### Encode
 
-Dosyaya çift tıklamak (`file://`) manifest/PWA tarafında tarayıcı kısıtlarına takılabilir. Gerçek kullanımda GitHub Pages `https://` üzerinden çalışır. Local test için geçici olarak:
+1. Dosya seç veya manuel HTML/metin kartı ekle.
+2. Gerekirse kare bazlı şifre/açıklama ayarlarını yap.
+3. A4 oluştur.
+4. PNG/SVG indir veya yazdır.
 
-```bash
-python -m http.server 8080
-```
+### Decode
 
-sonra `http://localhost:8080` açılabilir.
+#### Fotoğraf ile
+
+1. Okuma bölümünden fotoğraf yükle/çek.
+2. Oku butonuna bas.
+3. Şifre varsa gir.
+4. HTML yeni sekmede açılır.
+
+#### Canlı kamera ile
+
+1. Kamerayı aç.
+2. Veri karesini ekrandaki kılavuz çerçeveye getir.
+3. `Şimdi tara` ya da `Otomatik tara` kullan.
+4. Paket bulununca sonuç kartı çıkar.
+5. Şifre varsa gir; doğruysa HTML yeni sekmede açılır.
+
+## Notlar
+
+- Google Lens seviyesinde garanti değildir; ancak v12 ile canlı kamera ve perspektif düzeltme eklendi.
+- En iyi sonuç için kare net, ışık dengeli ve kadrajda büyük olmalıdır.
+- Çok eğik, bulanık, gölgeli veya kesilmiş çekimler başarısız olabilir.
+- Güvenlik için 20+ karakter karışık, tahmin edilemeyen şifre önerilir.
+
