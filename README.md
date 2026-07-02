@@ -1,39 +1,26 @@
-# PaperPack v6
+# PaperPack Web v7
 
-PaperPack, küçük HTML/TXT/kod dosyalarını A4 üzerine basılabilir siyah-beyaz veri desenine çeviren ve aynı sayfayı tekrar okuyarak dosyayı geri açan bağımlılıksız statik web uygulamasıdır.
+Bağımlılıksız statik web uygulaması. HTML/TXT/kod dosyasını A4 üzerinde basılabilir veri desenine çevirir; aynı uygulama fotoğraf/görselden geri okuyup dosyayı açar.
 
-## Özellikler
+## Kullanım
 
-- npm, build, backend, veritabanı, CDN yok.
-- GitHub Pages uyumlu statik dosyalar.
-- Tek büyük A4 modu ve 9 kutulu A4 modu.
-- Opsiyonel AES-GCM şifreleme.
-- Destekleyen tarayıcılarda gzip sıkıştırma.
-- PNG/SVG çıktı.
-- A4 üstüne opsiyonel okuyucu link QR'ı.
-- Fotoğraf/görsel yükleyerek okuma.
-- Otomatik veri alanı algılama + manuel alan seçimi.
-- Şifre doğruysa HTML/dosya yeni sekmede Blob URL ile açılır.
+1. `index.html`, `app.js`, `style.css`, `manifest.webmanifest`, `sw.js` dosyalarını GitHub deposuna yükle.
+2. GitHub Pages ile yayınla.
+3. Siteyi HTTPS üzerinden aç.
+4. Dosya seç, A4 oluştur, PNG/SVG indir veya yazdır.
+5. Okuma bölümünde görsel yükle/fotoğraf çek. Uygulama kalın siyah veri karesini otomatik seçmeye çalışır.
+6. Yeşil çerçeve doğru alanı kapsıyorsa doğrudan **Oku** de. Gerekirse elle sadece kalın siyah çerçeveli veri karesini seç.
 
-## Önemli okuma notu
+## v7 değişiklikleri
 
-Manuel seçim gerekirse **kalın siyah çerçeveli veri karesini** seçin. Siyah kalın çerçeve dahil olmalı; dıştaki ince kart/sayfa çizgisi ve başlık dahil edilmemeli.
+- Görsel yüklenince kalın siyah veri karesini otomatik seçme eklendi.
+- Okuma daha hızlı hale getirildi; ilk denemelerde en olası grid boyutları önce deneniyor.
+- Grid örnekleme Otsu adaptif eşik ile yapılıyor; sabit eşik yerine görüntünün kendi siyah/beyaz dağılımına göre karar veriyor.
+- Print/PDF CSS düzeltildi.
+- Okuyucu link QR alanı ve stilleri toparlandı.
 
-## GitHub Pages
+## Notlar
 
-Repo kök dizininde `index.html`, `style.css`, `app.js`, `manifest.webmanifest`, `sw.js` dosyaları varsa:
-
-1. GitHub repo → Settings → Pages
-2. Source: Deploy from a branch
-3. Branch: main / root
-4. Save
-
-## Local test
-
-Dosyaya çift tıklamak (`file://`) manifest/PWA tarafında tarayıcı kısıtlarına takılabilir. Gerçek kullanımda GitHub Pages `https://` üzerinden çalışır. Local test için geçici olarak:
-
-```bash
-python -m http.server 8080
-```
-
-sonra `http://localhost:8080` açılabilir.
+- Kendi üretilen PNG/SVG en güvenilir testtir.
+- Gerçek baskıda netlik, ışık ve perspektif hâlâ önemli.
+- HTML yeni sekmede Blob URL ile açılır; yalnızca güvendiğin PaperPack verilerini aç.

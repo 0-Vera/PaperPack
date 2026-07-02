@@ -65,9 +65,9 @@ button.secondary{background:#444}
 .error{background:#1d1d1d;color:#fff;padding:10px;border-radius:10px;white-space:pre-wrap}
 @media(max-width:760px){.grid2{grid-template-columns:1fr}.topbar{display:block}.paper{width:100%;min-height:0}.paper-wrap{padding:8px}.nine-grid{gap:5px;height:auto}.nine-grid .code-card{min-height:220px}}
 @media print{
-  body{background:#fff}
-  .topbar,.panel:not(.printable),.paper-wrap{display:block}
-  body > header, main > .panel, main > .paper-wrap{display:none!important}
+  body{background:#fff;margin:0}
+  body > header, main > .panel{display:none!important}
+  main > .paper-wrap{display:block!important;background:#fff;border:0;border-radius:0;box-shadow:none;margin:0;padding:0;overflow:visible}
   #paper{display:block!important;box-shadow:none;width:210mm;min-height:297mm;padding:8mm;margin:0}
   @page{size:A4;margin:0}
 }

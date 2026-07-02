@@ -10,7 +10,7 @@
     single: { safe: 180, standard: 256, dense: 320, max: 384 },
     nine: { safe: 72, standard: 96, dense: 112, max: 128 }
   };
-  const TRY_GRIDS = [256,180,320,384,128,96,112,72];
+  const TRY_GRIDS = [256,180,96,128,72,112,320,384];
 
   const $ = id => document.getElementById(id);
   const els = {
@@ -275,9 +275,19 @@
     const file=els.decodeImage.files && els.decodeImage.files[0];
     preview.selection=null;
     if(!file){ drawPreview(); return; }
-    try{ preview.img=await loadImageFromFile(file); drawPreview(); }
+    try{ preview.img=await loadImageFromFile(file); drawPreview(); autoSelectPreview(); }
     catch(e){ setDecodeStatus('Görsel önizlenemedi: '+e.message); }
   }
+  function autoSelectPreview(){
+    if(!preview.img) return;
+    const bbox = findCodeBoundingBox(els.imagePreview);
+    if(bbox && bbox.w > 40 && bbox.h > 40){
+      preview.selection = { x:bbox.x0, y:bbox.y0, w:bbox.w, h:bbox.h, auto:true };
+      drawPreview();
+      els.selectionInfo.textContent = 'Otomatik alan bulundu. Yeşil çerçeve kalın siyah veri karesini kapsıyorsa doğrudan Oku diyebilirsin.';
+    }
+  }
+
   function setupPreviewSelection(){
     const c=els.imagePreview;
     const pos=e=>{ const r=c.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:(p.clientX-r.left)*(c.width/r.width), y:(p.clientY-r.top)*(c.height/r.height)}; };
@@ -296,8 +306,17 @@
     c.width=Math.round((preview.img.naturalWidth||preview.img.width)*scale); c.height=Math.round((preview.img.naturalHeight||preview.img.height)*scale);
     preview.scaleX=(preview.img.naturalWidth||preview.img.width)/c.width; preview.scaleY=(preview.img.naturalHeight||preview.img.height)/c.height;
     ctx.drawImage(preview.img,0,0,c.width,c.height);
-    if(preview.selection){ ctx.save(); ctx.strokeStyle='#e00000'; ctx.lineWidth=3; ctx.setLineDash([8,4]); ctx.strokeRect(preview.selection.x,preview.selection.y,preview.selection.w,preview.selection.h); ctx.restore(); els.selectionInfo.textContent='Seçim aktif. En iyi seçim: sadece kalın siyah çerçeveli veri karesi; dıştaki ince kart çizgisi ve başlık dahil olmasın.'; }
-    else els.selectionInfo.textContent='Otomatik okuma başarısız olursa kalın siyah çerçeveli veri karesini seç. Siyah kalın çerçeve dahil, başlık ve dış ince çerçeve hariç.';
+    if(preview.selection){
+      ctx.save();
+      ctx.strokeStyle=preview.selection.auto ? '#009b48' : '#e00000';
+      ctx.lineWidth=3; ctx.setLineDash([8,4]);
+      ctx.strokeRect(preview.selection.x,preview.selection.y,preview.selection.w,preview.selection.h);
+      ctx.restore();
+      els.selectionInfo.textContent = preview.selection.auto
+        ? 'Otomatik seçim aktif. Yeşil çerçeve kalın siyah veri karesini kapsıyorsa doğrudan Oku diyebilirsin.'
+        : 'Manuel seçim aktif. En iyi seçim: sadece kalın siyah çerçeveli veri karesi; dıştaki ince kart çizgisi ve başlık dahil olmasın.';
+    }
+    else els.selectionInfo.textContent='Otomatik seçim bulunamadıysa kalın siyah çerçeveli veri karesini seç. Siyah kalın çerçeve dahil, başlık ve dış ince çerçeve hariç.';
   }
 
   async function decodeImageInput(){
@@ -393,20 +412,41 @@
   }
 
   function sampleGrid(canvas,bbox,n,mode){
-    const ctx=canvas.getContext('2d',{willReadFrequently:true}); const img=ctx.getImageData(0,0,canvas.width,canvas.height).data; const bits=new Uint8Array(n*n);
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const img=ctx.getImageData(0,0,canvas.width,canvas.height).data;
     let cellW,cellH,ox,oy;
     if(mode==='border'){
       const total=n+8; cellW=bbox.w/total; cellH=bbox.h/total; ox=bbox.x0+cellW*4; oy=bbox.y0+cellH*4;
     }else{
       cellW=bbox.w/n; cellH=bbox.h/n; ox=bbox.x0; oy=bbox.y0;
     }
+    const values=new Uint8Array(n*n);
     for(let y=0;y<n;y++) for(let x=0;x<n;x++){
-      const cx=clamp(Math.round(ox+(x+0.5)*cellW),0,canvas.width-1), cy=clamp(Math.round(oy+(y+0.5)*cellH),0,canvas.height-1);
-      let sum=0,count=0,rad=Math.max(1,Math.floor(Math.min(cellW,cellH)*0.18));
-      for(let yy=-rad; yy<=rad; yy++) for(let xx=-rad; xx<=rad; xx++){ const sx=clamp(cx+xx,0,canvas.width-1), sy=clamp(cy+yy,0,canvas.height-1); const i=(sy*canvas.width+sx)*4; sum+=img[i]+img[i+1]+img[i+2]; count++; }
-      bits[y*n+x]=(sum/count)<390?1:0;
+      const cx=clamp(Math.round(ox+(x+0.5)*cellW),0,canvas.width-1);
+      const cy=clamp(Math.round(oy+(y+0.5)*cellH),0,canvas.height-1);
+      const i=(cy*canvas.width+cx)*4;
+      values[y*n+x]=Math.round((img[i]+img[i+1]+img[i+2])/3);
     }
+    const threshold=otsuThreshold(values);
+    const bits=new Uint8Array(n*n);
+    for(let i=0;i<values.length;i++) bits[i]=values[i]<threshold?1:0;
     return bits;
+  }
+  function otsuThreshold(values){
+    const hist=new Uint32Array(256);
+    for(let i=0;i<values.length;i++) hist[values[i]]++;
+    const total=values.length;
+    let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
+    let sumB=0,wB=0,maxVar=-1,thr=128;
+    for(let t=0;t<256;t++){
+      wB+=hist[t]; if(!wB) continue;
+      const wF=total-wB; if(!wF) break;
+      sumB+=t*hist[t];
+      const mB=sumB/wB, mF=(sum-sumB)/wF;
+      const between=wB*wF*(mB-mF)*(mB-mF);
+      if(between>maxVar){ maxVar=between; thr=t; }
+    }
+    return Math.max(40, Math.min(220, thr));
   }
   function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
 
