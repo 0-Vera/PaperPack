@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PaperPack</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#111111" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>PaperPack</h1>
+      <p>Dosyayı A4 veri desenine çevir, çıktıyı okutunca dosyayı geri aç.</p>
+    </div>
+    <span class="badge">statik / bağımlılıksız / PWA hazır</span>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>1) Dosyayı A4'e hazırla</h2>
+      <div class="grid2">
+        <label class="field">
+          <span>Mod</span>
+          <select id="encodeMode">
+            <option value="single">Tek dosya / tek büyük alan</option>
+            <option value="nine">9 dosya / 3x3 A4</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Yoğunluk</span>
+          <select id="density">
+            <option value="safe">Güvenli</option>
+            <option value="standard" selected>Standart</option>
+            <option value="dense">Yoğun</option>
+            <option value="max">Maksimum</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="singleInputs" class="block">
+        <label class="field">
+          <span>Dosya seç</span>
+          <input id="fileInput" type="file" />
+        </label>
+        <label class="field">
+          <span>Ya da metin / HTML yapıştır</span>
+          <textarea id="textInput" placeholder="<h1>Merhaba</h1> veya düz metin..."></textarea>
+        </label>
+        <label class="field">
+          <span>Dosya adı</span>
+          <input id="manualName" type="text" placeholder="ornek.html" />
+        </label>
+      </div>
+
+      <div id="nineInputs" class="block hidden">
+        <p class="hint">En fazla 9 dosya seç. Her dosya ayrı kutuya basılır.</p>
+        <input id="multiFileInput" type="file" multiple />
+      </div>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Opsiyonel şifre</span>
+          <input id="password" type="password" autocomplete="new-password" placeholder="Boş bırakırsan şifresiz olur" />
+        </label>
+        <label class="field checkboxline">
+          <input id="hideNames" type="checkbox" />
+          <span>Baskıda dosya adını gizle</span>
+        </label>
+      </div>
+
+      <div id="capacityInfo" class="capacity"></div>
+      <div class="actions">
+        <button id="encodeBtn">A4 oluştur</button>
+        <button id="printBtn" disabled>Yazdır / PDF kaydet</button>
+        <button id="downloadPngBtn" disabled>PNG indir</button>
+        <button id="downloadSvgBtn" disabled>SVG indir</button>
+      </div>
+      <div id="encodeStatus" class="status"></div>
+    </section>
+
+    <section class="paper-wrap">
+      <div id="paper" class="paper a4">
+        <div class="empty-state">A4 çıktısı burada oluşacak.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>2) A4'ten geri oku</h2>
+      <p class="hint">En sağlam yöntem: uygulamanın PNG çıktısı veya düzgün ışıkta, mümkün olduğunca düz çekilmiş A4 fotoğrafı. Bu sürümde otomatik alan bulma güçlendirildi; yine de kağıdı olabildiğince düz ve gölgesiz çek.</p>
+      <div class="grid2">
+        <label class="field">
+          <span>Okuma modu</span>
+          <select id="decodeMode">
+            <option value="auto" selected>Akıllı tara / tek + 9'lu dene</option>
+            <option value="single">Tek kutu oku</option>
+            <option value="nine">9'lu A4 oku</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Görsel yükle / fotoğraf çek</span>
+          <input id="decodeImage" type="file" accept="image/*" capture="environment" />
+        </label>
+      </div>
+      <div class="grid2">
+        <label class="field">
+          <span>Okuma alanı</span>
+          <select id="decodeArea">
+            <option value="auto" selected>Tam görsel + seçili alan varsa onu da dene</option>
+            <option value="selected">Sadece seçili alanı oku</option>
+            <option value="full">Sadece tam görseli oku</option>
+          </select>
+        </label>
+        <div class="field">
+          <span>Manuel alan seçimi</span>
+          <button id="resetSelectionBtn" class="secondary" type="button">Seçimi sıfırla</button>
+        </div>
+      </div>
+      <div class="preview-box">
+        <canvas id="imagePreview" class="image-preview"></canvas>
+        <p id="selectionInfo" class="hint">Görsel yükleyince burada önizleme çıkar. Gerekirse kodun etrafını sürükleyerek seç.</p>
+      </div>
+      <div class="actions">
+        <button id="decodeBtn">Oku</button>
+        <button id="clearDecodeBtn">Sonucu temizle</button>
+      </div>
+      <div id="decodeStatus" class="status"></div>
+      <details class="tips"><summary>Baskı ve okuma ipuçları</summary><ul><li>PNG çıktısını önce ekrandan okutmak yerine yazdıracaksan %100 ölçek veya gerçek boyut kullan.</li><li>Fotoğrafı gölgesiz, mümkün olduğunca düz ve net çek.</li><li>Okuma başarısızsa önce manuel alan seçimiyle sadece kod kutusunu seç.</li><li>9'lu modda tüm A4'ü değil sadece 3x3 kart alanını seçmek daha iyi sonuç verir.</li></ul></details>
+      <div id="decodeResults" class="results"></div>
+    </section>
+  </main>
+
+  <template id="resultTemplate">
+    <div class="result-card">
+      <h3></h3>
+      <p class="meta"></p>
+      <div class="decrypt-zone hidden">
+        <label class="field small">
+          <span>Şifre</span>
+          <input type="password" class="result-password" autocomplete="current-password" />
+        </label>
+        <button class="decrypt-open-btn">Şifreyi çöz ve yeni sekmede aç</button>
+      </div>
+      <div class="open-zone hidden">
+        <button class="open-btn">Yeni sekmede aç</button>
+        <button class="download-btn">Dosyayı indir</button>
+      </div>
+      <pre class="error hidden"></pre>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>
