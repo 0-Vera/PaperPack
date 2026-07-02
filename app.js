@@ -15,7 +15,7 @@
   const els = {
     layoutMode: $('layoutMode'), density: $('density'), filePicker: $('filePicker'), addManualBtn: $('addManualBtn'),
     itemsPanel: $('itemsPanel'), itemTemplate: $('itemTemplate'), pagePreset: $('pagePreset'), readerLink: $('readerLink'),
-    showPageHeader: $('showPageHeader'), includeReaderLink: $('includeReaderLink'), showGlobalTech: $('showGlobalTech'), fitNineGrid: $('fitNineGrid'),
+    showPageHeader: $('showPageHeader'), includeReaderLink: $('includeReaderLink'), showGlobalTech: $('showGlobalTech'), fitNineGrid: $('fitNineGrid'), includeCodeFrame: $('includeCodeFrame'),
     globalDescription: $('globalDescription'), capacityInfo: $('capacityInfo'), encodeBtn: $('encodeBtn'), printBtn: $('printBtn'),
     downloadPngBtn: $('downloadPngBtn'), downloadSvgBtn: $('downloadSvgBtn'), encodeStatus: $('encodeStatus'), paper: $('paper'),
     decodeMode: $('decodeMode'), decodeArea: $('decodeArea'), decodeImage: $('decodeImage'), decodeBtn: $('decodeBtn'), clearDecodeBtn: $('clearDecodeBtn'),
@@ -156,7 +156,7 @@
         const gridSize = chooseGrid(layout, packet.length);
         const capacity = Math.floor((gridSize*gridSize)/8);
         if(packet.length > capacity) throw new Error(`${item.name} çok büyük. Paket ${(packet.length/1024).toFixed(1)} KB, bu kare kapasitesi ${(capacity/1024).toFixed(1)} KB. Yoğunluğu artır veya içeriği küçült.`);
-        const canvas = drawCodeCanvas(packet, gridSize, layout === 'single' ? 5 : 4);
+        const canvas = drawCodeCanvas(packet, gridSize, layout === 'single' ? 5 : 4, els.includeCodeFrame.checked);
         prepared.push({ item, packet, gridSize, canvas });
       }
       lastCards = prepared;
@@ -221,16 +221,21 @@
     return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:ITERATIONS, hash:'SHA-256'}, baseKey, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
   }
 
-  function drawCodeCanvas(packet, n, scale){
+  function drawCodeCanvas(packet, n, scale, includeFrame=true){
     const quiet=8, border=5, total=n+(quiet+border)*2;
     const canvas=document.createElement('canvas'); canvas.width=total*scale; canvas.height=total*scale;
     const ctx=canvas.getContext('2d',{alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle='#000';
-    ctx.fillRect(quiet*scale, quiet*scale, (n+border*2)*scale, border*scale);
-    ctx.fillRect(quiet*scale, (quiet+border+n)*scale, (n+border*2)*scale, border*scale);
-    ctx.fillRect(quiet*scale, quiet*scale, border*scale, (n+border*2)*scale);
-    ctx.fillRect((quiet+border+n)*scale, quiet*scale, border*scale, (n+border*2)*scale);
-    // Larger corner anchors in the quiet zone help auto detection without touching data cells.
+    // Readability frame: helps camera detection. It can be disabled from page settings,
+    // but the four corner targets remain because the decoder needs orientation anchors.
+    if(includeFrame){
+      ctx.fillRect(quiet*scale, quiet*scale, (n+border*2)*scale, border*scale);
+      ctx.fillRect(quiet*scale, (quiet+border+n)*scale, (n+border*2)*scale, border*scale);
+      ctx.fillRect(quiet*scale, quiet*scale, border*scale, (n+border*2)*scale);
+      ctx.fillRect((quiet+border+n)*scale, quiet*scale, border*scale, (n+border*2)*scale);
+    }
+    // Corner targets are always printed; they are smaller than the full frame but
+    // give the phone/camera a stable target without covering data cells.
     const anchor=border*2;
     for(const [ax,ay] of [[quiet,quiet],[quiet+n+border*2-anchor,quiet],[quiet,quiet+n+border*2-anchor],[quiet+n+border*2-anchor,quiet+n+border*2-anchor]]){
       ctx.fillRect(ax*scale, ay*scale, anchor*scale, anchor*scale);
@@ -458,11 +463,14 @@
     }
     candidates.push({canvas, warped:false});
     for(const cand of candidates){
-      const boxes=findAllCodeBoxes(cand.canvas).slice(0,10);
+      const boxes=findAllCodeBoxes(cand.canvas).slice(0,14);
       for(const bbox of boxes){
         for(const n of TRY_GRIDS){
-          try{ const bits=sampleGrid(cand.canvas,bbox,n); const p=parsePacket(bitsToBytes(bits)); if(p && !out.some(x=>x.header.name===p.header.name && x.payload.length===p.payload.length)) out.push(p); }
-          catch(_){}
+          const variants=sampleGridVariants(cand.canvas,bbox,n);
+          for(const bits of variants){
+            try{ const p=parsePacket(bitsToBytes(bits)); if(p && !out.some(x=>x.header.name===p.header.name && x.payload.length===p.payload.length)) out.push(p); }
+            catch(_){}
+          }
         }
       }
       if(out.length) break;
@@ -542,14 +550,47 @@
     for(let i=0;i<counts.length;i++){ const ok=counts[i]>=min; if(ok&&start<0)start=i; if((!ok||i===counts.length-1)&&start>=0){ const end=ok&&i===counts.length-1?i:i-1; if(!best||end-start>best[1]-best[0]) best=[start,end]; start=-1; } }
     return best;
   }
-  function sampleGrid(canvas,bbox,n){
+  function sampleGridVariants(canvas,bbox,n){
+    // The detected bbox may be: exact data area, black frame area, full generated canvas,
+    // or a hand-selected region. Try all valid geometry assumptions before giving up.
+    const variants=[];
+    const geom=[
+      {total:n, pad:0, name:'data-only'},
+      {total:n+10, pad:5, name:'frame-box'},
+      {total:n+26, pad:13, name:'full-code'},
+      {total:n+20, pad:10, name:'corner-targets'}
+    ];
+    for(const g of geom){
+      if(bbox.w < g.total || bbox.h < g.total) continue;
+      variants.push(sampleGrid(canvas,bbox,n,g.pad,g.total));
+    }
+    // If the region is not square, try a centered square crop too. This helps when the
+    // user selects slightly too much whitespace on one side.
+    const side=Math.min(bbox.w,bbox.h);
+    if(side>80 && Math.abs(bbox.w-bbox.h)>side*0.05){
+      const sq={x0:Math.round(bbox.x0+(bbox.w-side)/2), y0:Math.round(bbox.y0+(bbox.h-side)/2), x1:0,y1:0,w:side,h:side};
+      sq.x1=sq.x0+side-1; sq.y1=sq.y0+side-1;
+      for(const g of geom) variants.push(sampleGrid(canvas,sq,n,g.pad,g.total));
+    }
+    return variants;
+  }
+  function sampleGrid(canvas,bbox,n,pad,total){
     const ctx=canvas.getContext('2d',{willReadFrequently:true}); const img=ctx.getImageData(0,0,canvas.width,canvas.height).data; const bits=new Uint8Array(n*n);
-    const total=n+10; const cellW=bbox.w/total, cellH=bbox.h/total; const ox=bbox.x0+cellW*5, oy=bbox.y0+cellH*5;
+    const cellW=bbox.w/total, cellH=bbox.h/total; const ox=bbox.x0+cellW*pad, oy=bbox.y0+cellH*pad;
+    // Estimate local threshold from the central data area, then clamp it.
+    let minV=765,maxV=0;
+    const probe=Math.max(4,Math.floor(n/16));
+    for(let py=0;py<probe;py++) for(let px=0;px<probe;px++){
+      const x=Math.max(0,Math.min(canvas.width-1,Math.round(ox+(px+.5)*(n/probe)*cellW)));
+      const y=Math.max(0,Math.min(canvas.height-1,Math.round(oy+(py+.5)*(n/probe)*cellH)));
+      const i=(y*canvas.width+x)*4; const v=img[i]+img[i+1]+img[i+2]; if(v<minV)minV=v; if(v>maxV)maxV=v;
+    }
+    const threshold=Math.max(300,Math.min(560,(minV+maxV)/2));
     for(let y=0;y<n;y++) for(let x=0;x<n;x++){
       const cx=Math.max(0,Math.min(canvas.width-1,Math.round(ox+(x+.5)*cellW))); const cy=Math.max(0,Math.min(canvas.height-1,Math.round(oy+(y+.5)*cellH)));
-      let sum=0,count=0; const rad=Math.max(1,Math.floor(Math.min(cellW,cellH)*0.18));
+      let sum=0,count=0; const rad=Math.max(1,Math.floor(Math.min(cellW,cellH)*0.20));
       for(let yy=-rad;yy<=rad;yy++) for(let xx=-rad;xx<=rad;xx++){ const sx=Math.max(0,Math.min(canvas.width-1,cx+xx)); const sy=Math.max(0,Math.min(canvas.height-1,cy+yy)); const i=(sy*canvas.width+sx)*4; sum+=img[i]+img[i+1]+img[i+2]; count++; }
-      bits[y*n+x]=(sum/count)<390?1:0;
+      bits[y*n+x]=(sum/count)<threshold?1:0;
     }
     return bits;
   }
