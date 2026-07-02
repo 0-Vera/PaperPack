@@ -1,44 +1,39 @@
-# PaperPack Web
+# PaperPack v6
 
-Dosyayı A4 üzerindeki siyah-beyaz veri desenine çeviren ve aynı web uygulamasıyla fotoğraftan geri okuyabilen bağımlılıksız statik uygulama.
+PaperPack, küçük HTML/TXT/kod dosyalarını A4 üzerine basılabilir siyah-beyaz veri desenine çeviren ve aynı sayfayı tekrar okuyarak dosyayı geri açan bağımlılıksız statik web uygulamasıdır.
 
 ## Özellikler
 
-- HTML/TXT/JS/CSS/JSON gibi küçük dosyaları alır.
-- Manuel metin/HTML girişi destekler.
-- Opsiyonel şifreleme: Web Crypto API + AES-GCM + PBKDF2-SHA256.
-- Tarayıcı destekliyorsa otomatik gzip sıkıştırma yapar.
-- Tek dosya / tek büyük A4 modu.
-- 9 dosya / 3x3 A4 modu.
-- PNG, gerçek vektörel SVG ve tarayıcıdan yazdır/PDF olarak kaydet desteği.
-- Fotoğraf veya görsel yükleyerek geri okuma.
-- Okuma önizlemesi ve manuel alan seçimi vardır; kod alanını sürükleyerek seçip daha stabil okutabilirsin.
-- Akıllı okuma modu tek kutu ve 9'lu düzeni birlikte dener.
-- Çözülen HTML dosyasını uygulama içinde viewer açmadan yeni sekmede Blob URL olarak açar.
-- GitHub Pages uyumlu.
-- npm, backend, CDN, harici kütüphane yok.
-- PWA cache dosyaları eklidir; GitHub Pages/HTTPS üzerinden açıldıktan sonra temel dosyalar offline cache'e alınır.
+- npm, build, backend, veritabanı, CDN yok.
+- GitHub Pages uyumlu statik dosyalar.
+- Tek büyük A4 modu ve 9 kutulu A4 modu.
+- Opsiyonel AES-GCM şifreleme.
+- Destekleyen tarayıcılarda gzip sıkıştırma.
+- PNG/SVG çıktı.
+- A4 üstüne opsiyonel okuyucu link QR'ı.
+- Fotoğraf/görsel yükleyerek okuma.
+- Otomatik veri alanı algılama + manuel alan seçimi.
+- Şifre doğruysa HTML/dosya yeni sekmede Blob URL ile açılır.
 
-## Kullanım
+## Önemli okuma notu
 
-1. `index.html` dosyasını aç.
-2. Dosya seç veya metin/HTML yapıştır.
-3. İstersen şifre gir.
-4. A4 oluştur.
-5. PNG/SVG indir veya yazdır.
-6. Okuma bölümünden basılı A4 fotoğrafını ya da üretilen PNG'yi yükle.
-7. Gerekirse önizlemede kodun etrafını sürükleyerek manuel alan seç.
-8. Şifre varsa gir.
-9. HTML yeni sekmede açılır veya dosya olarak indirilir.
+Manuel seçim gerekirse **kalın siyah çerçeveli veri karesini** seçin. Siyah kalın çerçeve dahil olmalı; dıştaki ince kart/sayfa çizgisi ve başlık dahil edilmemeli.
 
 ## GitHub Pages
 
-Bu klasörü public bir GitHub deposuna koyup Pages'i root veya `/docs` klasörü üzerinden yayınlayabilirsin. Build işlemi yoktur.
+Repo kök dizininde `index.html`, `style.css`, `app.js`, `manifest.webmanifest`, `sw.js` dosyaları varsa:
 
-## Önemli notlar
+1. GitHub repo → Settings → Pages
+2. Source: Deploy from a branch
+3. Branch: main / root
+4. Save
 
-- Bu hâlâ MVP'dir; v5 ile baskı/PDF CSS sorunu düzeltilmiş ve SVG çıktısı PNG gömülü değil, gerçek karelerden oluşan vektörel çıktı haline getirilmiştir.
-- En stabil okuma uygulamanın ürettiği PNG/SVG çıktısından veya çok net/düz çekilmiş A4 fotoğrafından alınır.
-- Bu sürümde otomatik alan bulma, doğru grid örnekleme, akıllı tek/9'lu okuma, manuel alan seçimi, baskı CSS düzeltmesi ve gerçek vektörel SVG çıktısı geliştirildi.
-- Gerçek baskıda gölge, bulanıklık, yamuk açı ve düşük yazıcı kalitesi okuma başarısını düşürebilir.
-- Şifre güvenliği kullanılan parolanın gücüne bağlıdır. Zayıf parola offline brute force ile kırılabilir.
+## Local test
+
+Dosyaya çift tıklamak (`file://`) manifest/PWA tarafında tarayıcı kısıtlarına takılabilir. Gerçek kullanımda GitHub Pages `https://` üzerinden çalışır. Local test için geçici olarak:
+
+```bash
+python -m http.server 8080
+```
+
+sonra `http://localhost:8080` açılabilir.

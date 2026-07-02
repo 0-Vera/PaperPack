@@ -70,6 +70,17 @@
         </label>
       </div>
 
+      <div class="grid2">
+        <label class="field checkboxline compact-check">
+          <input id="includeReaderQr" type="checkbox" checked />
+          <span>A4 üstüne okuyucu link QR'ı ekle</span>
+        </label>
+        <label class="field">
+          <span>Okuyucu linki</span>
+          <input id="readerLink" type="url" value="https://0-vera.github.io/PaperPack/" />
+        </label>
+      </div>
+
       <div id="capacityInfo" class="capacity"></div>
       <div class="actions">
         <button id="encodeBtn">A4 oluştur</button>
@@ -88,7 +99,7 @@
 
     <section class="panel">
       <h2>2) A4'ten geri oku</h2>
-      <p class="hint">En sağlam yöntem: uygulamanın PNG çıktısı veya düzgün ışıkta, mümkün olduğunca düz çekilmiş A4 fotoğrafı. Bu sürümde otomatik alan bulma güçlendirildi; yine de kağıdı olabildiğince düz ve gölgesiz çek.</p>
+      <p class="hint">Önce otomatik oku. Başarısız olursa önizlemede sadece kalın siyah çerçeveli veri karesini seç: siyah çerçeve dahil, dıştaki ince kart çizgisi ve başlık hariç.</p>
       <div class="grid2">
         <label class="field">
           <span>Okuma modu</span>
@@ -126,7 +137,7 @@
         <button id="clearDecodeBtn">Sonucu temizle</button>
       </div>
       <div id="decodeStatus" class="status"></div>
-      <details class="tips"><summary>Baskı ve okuma ipuçları</summary><ul><li>PNG çıktısını önce ekrandan okutmak yerine yazdıracaksan %100 ölçek veya gerçek boyut kullan.</li><li>Fotoğrafı gölgesiz, mümkün olduğunca düz ve net çek.</li><li>Okuma başarısızsa önce manuel alan seçimiyle sadece kod kutusunu seç.</li><li>9'lu modda tüm A4'ü değil sadece 3x3 kart alanını seçmek daha iyi sonuç verir.</li></ul></details>
+      <details class="tips"><summary>Baskı ve okuma ipuçları</summary><ul><li>PNG çıktısını önce ekrandan okutmak yerine yazdıracaksan %100 ölçek veya gerçek boyut kullan.</li><li>Fotoğrafı gölgesiz, mümkün olduğunca düz ve net çek.</li><li>Okuma başarısızsa manuel seçimde kalın siyah çerçeveli veri karesini seç. Siyah kalın çerçeve dahil, dış ince kart çizgisi ve başlık hariç.</li><li>9'lu modda istersen tek kutuyu seçip tek dosya gibi okutabilirsin.</li></ul></details>
       <div id="decodeResults" class="results"></div>
     </section>
   </main>
