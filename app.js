@@ -10,17 +10,13 @@
     single: { safe: 180, standard: 256, dense: 320, max: 384 },
     nine: { safe: 72, standard: 96, dense: 112, max: 128 }
   };
-  const GRID_ORDER = {
-    single: ['safe','standard','dense','max'],
-    nine: ['safe','standard','dense','max']
-  };
-  const TRY_GRIDS = [180,256,128,96,72,112,320,384];
+  const TRY_GRIDS = [256,180,320,384,128,96,112,72];
 
   const $ = id => document.getElementById(id);
   const els = {
     encodeMode: $('encodeMode'), density: $('density'), singleInputs: $('singleInputs'), nineInputs: $('nineInputs'),
     fileInput: $('fileInput'), multiFileInput: $('multiFileInput'), textInput: $('textInput'), manualName: $('manualName'),
-    password: $('password'), pagePreset: $('pagePreset'), showTechInfo: $('showTechInfo'), showFileMeta: $('showFileMeta'), hideNames: $('hideNames'), includeDescription: $('includeDescription'), outputDescription: $('outputDescription'), includeReaderQr: $('includeReaderQr'), readerLink: $('readerLink'),
+    password: $('password'), hideNames: $('hideNames'), includeReaderQr: $('includeReaderQr'), readerLink: $('readerLink'),
     encodeBtn: $('encodeBtn'), printBtn: $('printBtn'), downloadPngBtn: $('downloadPngBtn'), downloadSvgBtn: $('downloadSvgBtn'),
     encodeStatus: $('encodeStatus'), capacityInfo: $('capacityInfo'), paper: $('paper'),
     decodeMode: $('decodeMode'), decodeArea: $('decodeArea'), decodeImage: $('decodeImage'), decodeBtn: $('decodeBtn'),
@@ -40,8 +36,6 @@
     els.encodeMode.addEventListener('change', () => { toggleMode(); updateCapacityInfo(); });
     els.density.addEventListener('change', updateCapacityInfo);
     els.includeReaderQr.addEventListener('change', updateCapacityInfo);
-    els.pagePreset.addEventListener('change', applyPagePreset);
-    applyPagePreset(false);
     els.encodeBtn.addEventListener('click', encodeCurrent);
     els.printBtn.addEventListener('click', () => window.print());
     els.downloadPngBtn.addEventListener('click', downloadPaperPng);
@@ -63,62 +57,8 @@
     els.nineInputs.classList.toggle('hidden', !nine);
   }
 
-
-  function getPrintOptions(){
-    const desc = (els.outputDescription.value || '').trim();
-    return {
-      showTech: Boolean(els.showTechInfo.checked),
-      showMeta: Boolean(els.showFileMeta.checked),
-      hideNames: Boolean(els.hideNames.checked),
-      showDesc: Boolean(els.includeDescription.checked && desc),
-      desc,
-      qr: Boolean(els.includeReaderQr.checked),
-      readerUrl: (els.readerLink.value || DEFAULT_READER_URL).trim()
-    };
-  }
-
-  function applyPagePreset(overwriteText = true){
-    const v = els.pagePreset.value;
-    if(v === 'minimal'){
-      els.showTechInfo.checked = false;
-      els.showFileMeta.checked = false;
-      els.hideNames.checked = true;
-      els.includeDescription.checked = false;
-      els.includeReaderQr.checked = false;
-    }else if(v === 'note'){
-      els.showTechInfo.checked = false;
-      els.showFileMeta.checked = false;
-      els.hideNames.checked = true;
-      els.includeDescription.checked = true;
-      els.includeReaderQr.checked = false;
-      if(overwriteText && !els.outputDescription.value.trim()) els.outputDescription.value = 'Bu çıktı PaperPack veri kağıdıdır. PaperPack okuyucu ile okutulup dosya geri açılır.';
-    }else if(v === 'standard'){
-      els.showTechInfo.checked = true;
-      els.showFileMeta.checked = false;
-      els.hideNames.checked = false;
-      els.includeDescription.checked = false;
-      els.includeReaderQr.checked = true;
-    }else if(v === 'full'){
-      els.showTechInfo.checked = true;
-      els.showFileMeta.checked = true;
-      els.hideNames.checked = false;
-      els.includeDescription.checked = true;
-      els.includeReaderQr.checked = true;
-      if(overwriteText && !els.outputDescription.value.trim()) els.outputDescription.value = 'Okuyucu linkini aç, bu kağıttaki veri karesini okut, şifre varsa gir ve dosyayı yeni sekmede aç.';
-    }
-    updateCapacityInfo();
-  }
-
   function updateCapacityInfo(){
     const mode = els.encodeMode.value;
-    if(els.density.value === 'auto'){
-      const opts = GRID_ORDER[mode].map(k => DENSITIES[mode][k]);
-      const min = opts[0], max = opts[opts.length-1];
-      els.capacityInfo.textContent = mode === 'nine'
-        ? `Otomatik mod: Her kutu için gereken en küçük okunabilir yoğunluk seçilir (${min}×${min} - ${max}×${max}). Küçük dosyada daha büyük hücre = daha kolay okuma.`
-        : `Otomatik mod: Dosya için gereken en küçük okunabilir yoğunluk seçilir (${min}×${min} - ${max}×${max}). Küçük dosyada daha büyük hücre = daha kolay okuma.`;
-      return;
-    }
     const n = DENSITIES[mode][els.density.value];
     const cap = Math.floor(n*n/8);
     const reserve = mode === 'nine' ? 180 : 220;
@@ -134,17 +74,16 @@
       setEncodeStatus('Hazırlanıyor...');
       await tick();
       const mode = els.encodeMode.value;
-      const selectedDensity = els.density.value;
+      const gridSize = DENSITIES[mode][els.density.value];
       const password = els.password.value || '';
       const files = mode === 'nine' ? await getNineFiles() : [await getSingleFile()];
       if(!files.length) throw new Error('Dosya veya metin girilmedi.');
       const cards = [];
       for(const file of files.slice(0, mode === 'nine' ? 9 : 1)){
         const packet = await buildPacket(file, password);
-        const gridSize = chooseGridForPacket(mode, selectedDensity, packet.length);
-        if(!gridSize){
-          const max = DENSITIES[mode].max;
-          throw new Error(`${file.name} çok büyük. Paket ${(packet.length/1024).toFixed(1)} KB, maksimum alan kapasitesi ${(Math.floor(max*max/8)/1024).toFixed(1)} KB.`);
+        const capacity = Math.floor(gridSize*gridSize/8);
+        if(packet.length > capacity){
+          throw new Error(`${file.name} çok büyük. Paket ${(packet.length/1024).toFixed(1)} KB, seçili alan kapasitesi ${(capacity/1024).toFixed(1)} KB.`);
         }
         const canvas = drawCodeCanvas(packet, gridSize, mode === 'nine' ? 4 : 5);
         cards.push({file, packet, canvas, gridSize});
@@ -153,21 +92,8 @@
       els.printBtn.disabled = false; els.downloadPngBtn.disabled = false; els.downloadSvgBtn.disabled = false;
       currentCards = cards; currentMode = mode;
       const summary = cards.map((c,i)=>`${i+1}. ${c.file.name}: ${(c.packet.length/1024).toFixed(2)} KB / ${(Math.floor(c.gridSize*c.gridSize/8)/1024).toFixed(2)} KB`).join('\n');
-      setEncodeStatus(`A4 hazır.\n${summary}\nOtomatik yoğunluk açıksa küçük dosyalarda daha düşük grid seçilir; okuma kolaylaşır.\nOkuma notu: Otomatik mod önce kalın siyah çerçeveyi bulmaya çalışır. Manuel seçmen gerekirse sadece kalın siyah çerçeveli veri karesini seç; dıştaki ince sayfa/kart çizgisini ve başlığı alma.`);
+      setEncodeStatus(`A4 hazır.\n${summary}\nOkuma notu: Otomatik mod önce kalın siyah çerçeveyi bulmaya çalışır. Manuel seçmen gerekirse sadece kalın siyah çerçeveli veri karesini seç; dıştaki ince sayfa/kart çizgisini ve başlığı alma.`);
     }catch(err){ console.error(err); setEncodeStatus('Hata: ' + err.message); }
-  }
-
-
-  function chooseGridForPacket(mode, selectedDensity, packetLength){
-    if(selectedDensity !== 'auto'){
-      const n = DENSITIES[mode][selectedDensity];
-      return packetLength <= Math.floor(n*n/8) ? n : null;
-    }
-    for(const key of GRID_ORDER[mode]){
-      const n = DENSITIES[mode][key];
-      if(packetLength <= Math.floor(n*n/8)) return n;
-    }
-    return null;
   }
 
   async function getSingleFile(){
@@ -276,64 +202,40 @@
   }
 
   function renderPaper(cards, mode, encrypted){
-    const opts = getPrintOptions();
     els.paper.innerHTML='';
-    els.paper.className = 'paper a4';
-    const minimal = !opts.showTech && !opts.qr && !opts.showMeta && !opts.showDesc;
-    els.paper.classList.toggle('layout-minimal', minimal);
-    els.paper.classList.toggle('layout-has-title', opts.showTech || opts.qr);
-
-    if(opts.showTech || opts.qr){
-      const title=document.createElement('div'); title.className='paper-title';
-      if(opts.showTech){
-        const main=document.createElement('div'); main.className='paper-title-main';
-        main.innerHTML = `<strong>PaperPack</strong><span>${mode==='nine'?'9 dosya modu':'tek dosya modu'} • ${encrypted?'şifreli':'şifresiz'} • ${new Date().toLocaleString('tr-TR')}</span>`;
-        title.appendChild(main);
-      }
-      if(opts.qr){
-        const box=document.createElement('div'); box.className='reader-box';
-        const img=document.createElement('img'); img.className='reader-qr'; img.alt='PaperPack okuyucu linki'; img.src=DEFAULT_READER_QR;
-        const tx=document.createElement('div'); tx.className='reader-text'; tx.innerHTML = `<b>Okuyucu</b><span>${escapeHtml(opts.readerUrl)}</span>`;
-        box.appendChild(tx); box.appendChild(img); title.appendChild(box);
-      }
-      els.paper.appendChild(title);
-    }
-
+    const title=document.createElement('div'); title.className='paper-title';
+    const qrEnabled = els.includeReaderQr.checked;
+    title.innerHTML = `<div><strong>PaperPack v1</strong><span>${mode==='nine'?'9 dosya modu':'tek dosya modu'} • ${encrypted?'şifreli':'şifresiz'} • ${new Date().toLocaleString('tr-TR')}</span><span class="reader-url">${qrEnabled ? escapeHtml(els.readerLink.value || DEFAULT_READER_URL) : ''}</span></div>`;
+    if(qrEnabled){ const img=document.createElement('img'); img.className='reader-qr'; img.alt='PaperPack okuyucu linki'; img.src=DEFAULT_READER_QR; title.appendChild(img); }
+    els.paper.appendChild(title);
     if(mode==='nine'){
       const grid=document.createElement('div'); grid.className='nine-grid';
       for(let i=0;i<9;i++){
         const item=cards[i], card=document.createElement('div'); card.className='code-card';
-        if(item){ const m=metaLine(item.file.name,i+1,item.packet.length,item.gridSize,opts); if(m) card.appendChild(m); item.canvas.className='code-canvas'; card.appendChild(item.canvas); }
+        if(item){ card.appendChild(metaLine(item.file.name,i+1,item.packet.length,item.gridSize)); item.canvas.className='code-canvas'; card.appendChild(item.canvas); }
+        else card.innerHTML='<div class="code-meta"><span>Boş</span><span></span></div>';
         grid.appendChild(card);
       }
       els.paper.appendChild(grid);
     }else{
       const card=document.createElement('div'); card.className='code-card single-card';
-      const m=metaLine(cards[0].file.name,1,cards[0].packet.length,cards[0].gridSize,opts); if(m) card.appendChild(m);
-      cards[0].canvas.className='code-canvas'; card.appendChild(cards[0].canvas); els.paper.appendChild(card);
-    }
-    if(opts.showDesc){
-      const d=document.createElement('div'); d.className='paper-description'; d.textContent=opts.desc; els.paper.appendChild(d);
+      card.appendChild(metaLine(cards[0].file.name,1,cards[0].packet.length,cards[0].gridSize)); cards[0].canvas.className='code-canvas'; card.appendChild(cards[0].canvas); els.paper.appendChild(card);
     }
   }
 
-  function metaLine(name,index,bytes,grid,opts){
-    if(!opts.showMeta) return null;
+  function metaLine(name,index,bytes,grid){
     const div=document.createElement('div'); div.className='code-meta';
-    const left = opts.hideNames ? `${index}.` : `${index}. ${escapeHtml(name)}`;
-    const right = `${grid}×${grid} • ${(bytes/1024).toFixed(2)} KB`;
-    div.innerHTML=`<span>${left}</span><span>${right}</span>`;
+    div.innerHTML=`<span>${index}. ${els.hideNames.checked?'gizli':escapeHtml(name)}</span><span>${grid}×${grid} • ${(bytes/1024).toFixed(2)} KB</span>`;
     return div;
   }
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   async function downloadPaperPng(){
-    const opts = getPrintOptions();
     const scale=2, w=els.paper.offsetWidth, h=els.paper.offsetHeight;
     const out=document.createElement('canvas'); out.width=w*scale; out.height=h*scale;
     const ctx=out.getContext('2d',{alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,out.width,out.height); ctx.scale(scale,scale);
-    if(opts.showTech){ ctx.fillStyle='#111'; ctx.font='18px Arial'; ctx.fillText('PaperPack',30,32); ctx.font='10px Arial'; ctx.fillText(`${currentMode==='nine'?'9 dosya modu':'tek dosya modu'}`,30,48); }
-    if(opts.qr){ await drawImageData(ctx, DEFAULT_READER_QR, w-104, 20, 74, 74); ctx.fillStyle='#111'; ctx.font='10px Arial'; ctx.fillText('Okuyucu', w-104, 106); }
+    ctx.fillStyle='#111'; ctx.font='18px Arial'; ctx.fillText('PaperPack v1',30,32);
+    if(els.includeReaderQr.checked){ await drawImageData(ctx, DEFAULT_READER_QR, w-120, 20, 84, 84); ctx.font='9px Arial'; ctx.fillText('Okuyucu', w-116, 112); }
     const parent=els.paper.getBoundingClientRect();
     for(const card of Array.from(els.paper.querySelectorAll('.code-card'))){
       const r=card.getBoundingClientRect(); const x=r.left-parent.left, y=r.top-parent.top;
@@ -341,37 +243,24 @@
       const meta=card.querySelector('.code-meta'); if(meta){ ctx.fillStyle='#111'; ctx.font='9px Arial'; ctx.fillText(meta.innerText.slice(0,100),x+6,y+13); }
       const can=card.querySelector('canvas'); if(can){ const cr=can.getBoundingClientRect(); ctx.drawImage(can, cr.left-parent.left, cr.top-parent.top, cr.width, cr.height); }
     }
-    const desc=els.paper.querySelector('.paper-description');
-    if(desc){ const r=desc.getBoundingClientRect(), parent=els.paper.getBoundingClientRect(); ctx.fillStyle='#111'; ctx.font='11px Arial'; wrapCanvasText(ctx, desc.textContent, r.left-parent.left+6, r.top-parent.top+16, r.width-12, 14); }
     out.toBlob(blob=>{ if(lastPaperBlobUrl) URL.revokeObjectURL(lastPaperBlobUrl); lastPaperBlobUrl=URL.createObjectURL(blob); downloadUrl(lastPaperBlobUrl,'paperpack-a4.png'); },'image/png');
-  }
-
-  function wrapCanvasText(ctx,text,x,y,maxWidth,lineHeight){
-    const words=String(text).split(/\s+/); let line='';
-    for(const word of words){ const test=line?line+' '+word:word; if(ctx.measureText(test).width>maxWidth && line){ ctx.fillText(line,x,y); line=word; y+=lineHeight; } else line=test; }
-    if(line) ctx.fillText(line,x,y);
   }
   function drawImageData(ctx,src,x,y,w,h){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ctx.drawImage(im,x,y,w,h);res();}; im.src=src; }); }
   function downloadUrl(url,name){ const a=document.createElement('a'); a.href=url; a.download=name; a.click(); }
 
   function downloadPaperSvg(){
     if(!currentCards.length) return;
-    const opts = getPrintOptions();
     const W=210, H=297;
-    let s=`<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/>`;
-    if(opts.showTech) s += `<text x="8" y="10" font-family="Arial" font-size="5" font-weight="700">PaperPack</text><text x="8" y="15" font-family="Arial" font-size="3">${currentMode==='nine'?'9 dosya modu':'tek dosya modu'}</text>`;
-    if(opts.qr) s += `<image href="${DEFAULT_READER_QR}" x="178" y="5" width="22" height="22"/><text x="178" y="30" font-family="Arial" font-size="3">Okuyucu</text>`;
-    const top = (opts.showTech || opts.qr) ? 32 : 14;
-    if(currentMode==='single') s += svgCard(currentCards[0],20,top,170,170,1,opts);
-    else { let i=0; for(let r=0;r<3;r++) for(let c=0;c<3;c++){ if(currentCards[i]) s+=svgCard(currentCards[i],8+c*66,top-6+r*88,60,60,i+1,opts); i++; } }
-    if(opts.showDesc){ s += `<text x="12" y="286" font-family="Arial" font-size="3.2">${escapeXml(opts.desc).slice(0,260)}</text>`; }
+    let s=`<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/><text x="8" y="10" font-family="Arial" font-size="5">PaperPack v1</text>`;
+    if(els.includeReaderQr.checked) s += `<image href="${DEFAULT_READER_QR}" x="178" y="5" width="22" height="22"/>`;
+    if(currentMode==='single') s += svgCard(currentCards[0],20,32,170,170,1);
+    else { let i=0; for(let r=0;r<3;r++) for(let c=0;c<3;c++){ if(currentCards[i]) s+=svgCard(currentCards[i],8+c*66,26+r*88,60,60,i+1); i++; } }
     s += '</svg>';
     const url=URL.createObjectURL(new Blob([s],{type:'image/svg+xml'})); downloadUrl(url,'paperpack-a4.svg'); setTimeout(()=>URL.revokeObjectURL(url),30000);
   }
-  function svgCard(card,x,y,w,h,index,opts){
+  function svgCard(card,x,y,w,h,index){
     const n=card.gridSize, quiet=8, border=4, total=n+(quiet+border)*2, cell=w/total, bits=bytesToBits(card.packet,n*n);
-    let s=`<g><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" stroke="#111" stroke-width="0.2"/>`;
-    if(opts.showMeta){ const label = opts.hideNames ? `${index}. ${n}x${n}` : `${index}. ${escapeXml(card.file.name)} ${n}x${n}`; s += `<text x="${x}" y="${y-1.5}" font-family="Arial" font-size="2.4">${label}</text>`; }
+    let s=`<g><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" stroke="#111" stroke-width="0.2"/><text x="${x}" y="${y-1.5}" font-family="Arial" font-size="2.4">${index}. ${escapeXml(card.file.name)} ${n}x${n}</text>`;
     s += `<rect x="${x+quiet*cell}" y="${y+quiet*cell}" width="${(n+border*2)*cell}" height="${border*cell}" fill="#000"/>`;
     s += `<rect x="${x+quiet*cell}" y="${y+(quiet+border+n)*cell}" width="${(n+border*2)*cell}" height="${border*cell}" fill="#000"/>`;
     s += `<rect x="${x+quiet*cell}" y="${y+quiet*cell}" width="${border*cell}" height="${(n+border*2)*cell}" fill="#000"/>`;
@@ -380,23 +269,15 @@
     for(let i=0;i<bits.length;i++) if(bits[i]){ const xx=i%n, yy=Math.floor(i/n); s += `<rect x="${(ox+xx*cell).toFixed(3)}" y="${(oy+yy*cell).toFixed(3)}" width="${cell.toFixed(3)}" height="${cell.toFixed(3)}" fill="#000"/>`; }
     return s+'</g>';
   }
+  function escapeXml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
   async function preparePreview(){
     const file=els.decodeImage.files && els.decodeImage.files[0];
     preview.selection=null;
     if(!file){ drawPreview(); return; }
-    try{ preview.img=await loadImageFromFile(file); drawPreview(); autoSelectPreview(); }
+    try{ preview.img=await loadImageFromFile(file); drawPreview(); }
     catch(e){ setDecodeStatus('Görsel önizlenemedi: '+e.message); }
   }
-  function autoSelectPreview(){
-    if(!preview.img) return;
-    const bbox = findCodeBoundingBox(els.imagePreview);
-    if(bbox && bbox.w > 40 && bbox.h > 40){
-      preview.selection = { x:bbox.x0, y:bbox.y0, w:bbox.w, h:bbox.h, auto:true };
-      drawPreview();
-      els.selectionInfo.textContent = 'Otomatik alan bulundu. Yeşil çerçeve kalın siyah veri karesini kapsıyorsa doğrudan Oku diyebilirsin.';
-    }
-  }
-
   function setupPreviewSelection(){
     const c=els.imagePreview;
     const pos=e=>{ const r=c.getBoundingClientRect(); const p=e.touches?e.touches[0]:e; return {x:(p.clientX-r.left)*(c.width/r.width), y:(p.clientY-r.top)*(c.height/r.height)}; };
@@ -415,17 +296,8 @@
     c.width=Math.round((preview.img.naturalWidth||preview.img.width)*scale); c.height=Math.round((preview.img.naturalHeight||preview.img.height)*scale);
     preview.scaleX=(preview.img.naturalWidth||preview.img.width)/c.width; preview.scaleY=(preview.img.naturalHeight||preview.img.height)/c.height;
     ctx.drawImage(preview.img,0,0,c.width,c.height);
-    if(preview.selection){
-      ctx.save();
-      ctx.strokeStyle=preview.selection.auto ? '#009b48' : '#e00000';
-      ctx.lineWidth=3; ctx.setLineDash([8,4]);
-      ctx.strokeRect(preview.selection.x,preview.selection.y,preview.selection.w,preview.selection.h);
-      ctx.restore();
-      els.selectionInfo.textContent = preview.selection.auto
-        ? 'Otomatik seçim aktif. Yeşil çerçeve kalın siyah veri karesini kapsıyorsa doğrudan Oku diyebilirsin.'
-        : 'Manuel seçim aktif. En iyi seçim: sadece kalın siyah çerçeveli veri karesi; dıştaki ince kart çizgisi ve başlık dahil olmasın.';
-    }
-    else els.selectionInfo.textContent='Otomatik seçim bulunamadıysa kalın siyah çerçeveli veri karesini seç. Siyah kalın çerçeve dahil, başlık ve dış ince çerçeve hariç.';
+    if(preview.selection){ ctx.save(); ctx.strokeStyle='#e00000'; ctx.lineWidth=3; ctx.setLineDash([8,4]); ctx.strokeRect(preview.selection.x,preview.selection.y,preview.selection.w,preview.selection.h); ctx.restore(); els.selectionInfo.textContent='Seçim aktif. En iyi seçim: sadece kalın siyah çerçeveli veri karesi; dıştaki ince kart çizgisi ve başlık dahil olmasın.'; }
+    else els.selectionInfo.textContent='Otomatik okuma başarısız olursa kalın siyah çerçeveli veri karesini seç. Siyah kalın çerçeve dahil, başlık ve dış ince çerçeve hariç.';
   }
 
   async function decodeImageInput(){
@@ -463,17 +335,12 @@
 
   function decodeAutoFromCanvas(canvas){
     const packets=[], candidates=buildCandidates(canvas); let attempts=0;
-    for(const bbox0 of candidates){
-      const bboxList = expandBboxVariants(canvas, bbox0);
-      for(const bbox of bboxList){
-        for(const n of TRY_GRIDS){
-          for(const mode of ['border','direct']){
-            for(const phase of [0, -0.18, 0.18]){
-              attempts++;
-              try{ const p=parsePacket(bitsToBytes(sampleGrid(canvas,bbox,n,mode,phase))); if(p) return {packets:[p], attempts}; }
-              catch(e){ /* try next */ }
-            }
-          }
+    for(const bbox of candidates){
+      for(const n of TRY_GRIDS){
+        for(const mode of ['border','direct']){
+          attempts++;
+          try{ const p=parsePacket(bitsToBytes(sampleGrid(canvas,bbox,n,mode))); if(p) return {packets:[p], attempts}; }
+          catch(e){ /* try next */ }
         }
       }
     }
@@ -525,73 +392,21 @@
     return best;
   }
 
-
-  function expandBboxVariants(canvas,bbox){
-    const out=[];
-    const add=(b)=>{
-      const x0=clamp(Math.round(b.x0),0,canvas.width-2), y0=clamp(Math.round(b.y0),0,canvas.height-2);
-      const x1=clamp(Math.round(b.x1),x0+1,canvas.width-1), y1=clamp(Math.round(b.y1),y0+1,canvas.height-1);
-      const key=[x0,y0,x1,y1].join(',');
-      if(!out.some(v=>v.key===key)) out.push({x0,y0,x1,y1,w:x1-x0+1,h:y1-y0+1,key});
-    };
-    add(bbox);
-    const pad=Math.round(Math.min(bbox.w,bbox.h)*0.01);
-    add({x0:bbox.x0-pad,y0:bbox.y0-pad,x1:bbox.x1+pad,y1:bbox.y1+pad});
-    add({x0:bbox.x0+pad,y0:bbox.y0+pad,x1:bbox.x1-pad,y1:bbox.y1-pad});
-    return out;
-  }
-
-  function sampleGrid(canvas,bbox,n,mode,phase=0){
-    const ctx=canvas.getContext('2d',{willReadFrequently:true});
-    const img=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  function sampleGrid(canvas,bbox,n,mode){
+    const ctx=canvas.getContext('2d',{willReadFrequently:true}); const img=ctx.getImageData(0,0,canvas.width,canvas.height).data; const bits=new Uint8Array(n*n);
     let cellW,cellH,ox,oy;
     if(mode==='border'){
       const total=n+8; cellW=bbox.w/total; cellH=bbox.h/total; ox=bbox.x0+cellW*4; oy=bbox.y0+cellH*4;
     }else{
       cellW=bbox.w/n; cellH=bbox.h/n; ox=bbox.x0; oy=bbox.y0;
     }
-    const values=new Uint8Array(n*n);
     for(let y=0;y<n;y++) for(let x=0;x<n;x++){
-      const cx=ox+(x+0.5+phase)*cellW;
-      const cy=oy+(y+0.5+phase)*cellH;
-      values[y*n+x]=sampleAverageGray(img,canvas.width,canvas.height,cx,cy,cellW,cellH);
+      const cx=clamp(Math.round(ox+(x+0.5)*cellW),0,canvas.width-1), cy=clamp(Math.round(oy+(y+0.5)*cellH),0,canvas.height-1);
+      let sum=0,count=0,rad=Math.max(1,Math.floor(Math.min(cellW,cellH)*0.18));
+      for(let yy=-rad; yy<=rad; yy++) for(let xx=-rad; xx<=rad; xx++){ const sx=clamp(cx+xx,0,canvas.width-1), sy=clamp(cy+yy,0,canvas.height-1); const i=(sy*canvas.width+sx)*4; sum+=img[i]+img[i+1]+img[i+2]; count++; }
+      bits[y*n+x]=(sum/count)<390?1:0;
     }
-    const threshold=otsuThreshold(values);
-    const bits=new Uint8Array(n*n);
-    for(let i=0;i<values.length;i++) bits[i]=values[i]<threshold?1:0;
     return bits;
-  }
-
-  function sampleAverageGray(img,w,h,cx,cy,cellW,cellH){
-    const rX=Math.max(0.5, Math.min(2.5, cellW*0.22));
-    const rY=Math.max(0.5, Math.min(2.5, cellH*0.22));
-    const xs=[cx, cx-rX, cx+rX, cx, cx];
-    const ys=[cy, cy, cy, cy-rY, cy+rY];
-    let sum=0,count=0;
-    for(let k=0;k<xs.length;k++){
-      const x=clamp(Math.round(xs[k]),0,w-1), y=clamp(Math.round(ys[k]),0,h-1);
-      const i=(y*w+x)*4;
-      sum += (img[i]+img[i+1]+img[i+2])/3;
-      count++;
-    }
-    return Math.round(sum/count);
-  }
-
-  function otsuThreshold(values){
-    const hist=new Uint32Array(256);
-    for(let i=0;i<values.length;i++) hist[values[i]]++;
-    const total=values.length;
-    let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
-    let sumB=0,wB=0,maxVar=-1,thr=128;
-    for(let t=0;t<256;t++){
-      wB+=hist[t]; if(!wB) continue;
-      const wF=total-wB; if(!wF) break;
-      sumB+=t*hist[t];
-      const mB=sumB/wB, mF=(sum-sumB)/wF;
-      const between=wB*wF*(mB-mF)*(mB-mF);
-      if(between>maxVar){ maxVar=between; thr=t; }
-    }
-    return Math.max(40, Math.min(220, thr));
   }
   function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
 

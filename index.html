@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PaperPack</title>
-  <link rel="stylesheet" href="style.css?v=10" />
-  <!-- PWA manifest kapalı: GitHub Pages üzerinde sade ve cache sorunsuz kullanım için. -->
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#111111" />
 </head>
 <body>
@@ -14,7 +14,7 @@
       <h1>PaperPack</h1>
       <p>Dosyayı A4 veri desenine çevir, çıktıyı okutunca dosyayı geri aç.</p>
     </div>
-    <span class="badge">statik / bağımlılıksız / v10</span>
+    <span class="badge">statik / bağımlılıksız / PWA hazır</span>
   </header>
 
   <main>
@@ -31,9 +31,8 @@
         <label class="field">
           <span>Yoğunluk</span>
           <select id="density">
-            <option value="auto" selected>Otomatik / önerilen</option>
             <option value="safe">Güvenli</option>
-            <option value="standard">Standart</option>
+            <option value="standard" selected>Standart</option>
             <option value="dense">Yoğun</option>
             <option value="max">Maksimum</option>
           </select>
@@ -65,53 +64,23 @@
           <span>Opsiyonel şifre</span>
           <input id="password" type="password" autocomplete="new-password" placeholder="Boş bırakırsan şifresiz olur" />
         </label>
-        <label class="field">
-          <span>Sayfa yapısı</span>
-          <select id="pagePreset">
-            <option value="minimal">Sade: sadece veri karesi</option>
-            <option value="note">Açıklamalı: kare + alt metin</option>
-            <option value="standard" selected>Standart: temiz başlık + okuyucu QR</option>
-            <option value="full">Tam bilgi: başlık + QR + dosya bilgisi + açıklama</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="grid2 output-options">
-        <label class="field checkboxline compact-check">
-          <input id="showTechInfo" type="checkbox" checked />
-          <span>Üst başlık / teknik bilgiyi göster</span>
-        </label>
-        <label class="field checkboxline compact-check">
-          <input id="showFileMeta" type="checkbox" />
-          <span>Kare üstünde dosya adı / boyut bilgisini göster</span>
-        </label>
-        <label class="field checkboxline compact-check">
+        <label class="field checkboxline">
           <input id="hideNames" type="checkbox" />
-          <span>Dosya adını gizle</span>
-        </label>
-        <label class="field checkboxline compact-check">
-          <input id="includeDescription" type="checkbox" />
-          <span>Kare altına açıklama metni ekle</span>
+          <span>Baskıda dosya adını gizle</span>
         </label>
       </div>
 
-      <label class="field">
-        <span>Açıklama metni</span>
-        <textarea id="outputDescription" class="small-textarea" placeholder="İsteğe bağlı. Örn: Bu kağıdı okutmak için üstteki PaperPack linkini açın, veriyi tarayın, şifreyi girin."></textarea>
-      </label>
-
-      <div class="reader-settings">
+      <div class="grid2">
         <label class="field checkboxline compact-check">
           <input id="includeReaderQr" type="checkbox" checked />
           <span>A4 üstüne okuyucu link QR'ı ekle</span>
         </label>
-        <label class="field reader-link-field">
+        <label class="field">
           <span>Okuyucu linki</span>
           <input id="readerLink" type="url" value="https://0-vera.github.io/PaperPack/" />
         </label>
       </div>
 
-      <div class="mobile-note">Mobilde önizleme gizlidir. A4 oluşturduktan sonra PNG/SVG indir veya Yazdır/PDF kaydet kullan.</div>
       <div id="capacityInfo" class="capacity"></div>
       <div class="actions">
         <button id="encodeBtn">A4 oluştur</button>
@@ -130,8 +99,7 @@
 
     <section class="panel">
       <h2>2) A4'ten geri oku</h2>
-      <p class="hint desktop-hint">Önce otomatik oku. Uygulamanın kendi ürettiği PNG/PDF çıktısında normalde seçim gerekmez. Başarısız olursa önizlemede sadece kalın siyah çerçeveli veri karesini seç: siyah çerçeve dahil, dıştaki ince kart çizgisi ve başlık hariç.</p>
-      <p class="hint mobile-note">Mobil kullanımda önizleme ve manuel seçim gizlidir. A4 fotoğrafını/görselini yükle, sistem otomatik okumayı dener.</p>
+      <p class="hint">Önce otomatik oku. Başarısız olursa önizlemede sadece kalın siyah çerçeveli veri karesini seç: siyah çerçeve dahil, dıştaki ince kart çizgisi ve başlık hariç.</p>
       <div class="grid2">
         <label class="field">
           <span>Okuma modu</span>
@@ -146,7 +114,7 @@
           <input id="decodeImage" type="file" accept="image/*" capture="environment" />
         </label>
       </div>
-      <div class="grid2 decode-advanced">
+      <div class="grid2">
         <label class="field">
           <span>Okuma alanı</span>
           <select id="decodeArea">
@@ -160,7 +128,7 @@
           <button id="resetSelectionBtn" class="secondary" type="button">Seçimi sıfırla</button>
         </div>
       </div>
-      <div class="preview-box decode-advanced">
+      <div class="preview-box">
         <canvas id="imagePreview" class="image-preview"></canvas>
         <p id="selectionInfo" class="hint">Görsel yükleyince burada önizleme çıkar. Gerekirse kodun etrafını sürükleyerek seç.</p>
       </div>
@@ -193,20 +161,10 @@
     </div>
   </template>
 
-  <script src="app.js?v=10"></script>
+  <script src="app.js"></script>
   <script>
-    // v10: Service worker kapalı. Eski cache, app.js güncellemelerini bozabiliyordu.
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-      window.addEventListener('load', async () => {
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          for (const reg of regs) await reg.unregister();
-          if (window.caches) {
-            const keys = await caches.keys();
-            for (const key of keys) if (key.startsWith('paperpack-')) await caches.delete(key);
-          }
-        } catch (_) {}
-      });
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
     }
   </script>
 </body>
