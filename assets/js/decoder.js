@@ -122,16 +122,19 @@
     otsu: otsu,
     downscaleCanvas: downscaleCanvas,
     decodeKnownSquare: decodeKnownSquare,
-    tryDecodeQuad: function(canvas, corners, gridSize, thresholds){
-      var ctx = canvas.getContext('2d', { willReadFrequently:true });
-      var img = ctx.getImageData(0,0,canvas.width,canvas.height);
+    tryDecodeImageData: function(imageData, corners, gridSize, thresholds){
       var lastErr = null;
       for(var i=0;i<thresholds.length;i++){
-        var matrix = sampleMatrixFromQuad(img, corners, gridSize, thresholds[i]);
+        var matrix = sampleMatrixFromQuad(imageData, corners, gridSize, thresholds[i]);
         try{ return PP.encoder.decodeMatrixAnyRotation(matrix, gridSize); }
         catch(err){ lastErr = err; }
       }
       throw lastErr || new Error('Bu aday kare okunamadı.');
+    },
+    tryDecodeQuad: function(canvas, corners, gridSize, thresholds){
+      var ctx = canvas.getContext('2d', { willReadFrequently:true });
+      var img = ctx.getImageData(0,0,canvas.width,canvas.height);
+      return this.tryDecodeImageData(img, corners, gridSize, thresholds);
     },
     findCandidates: function(canvas){
       var cg = canvasToGray(canvas);

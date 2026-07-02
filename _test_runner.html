@@ -1,0 +1,40 @@
+<!doctype html><html><body><canvas id="a4Canvas"></canvas><pre id="out">pending</pre>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/crc.js"></script>
+<script src="assets/js/state.js"></script>
+<script src="assets/js/compression.js"></script>
+<script src="assets/js/crypto.js"></script>
+<script src="assets/js/encoder.js"></script>
+<script src="assets/js/perspective.js"></script>
+<script src="assets/js/decoder.js"></script>
+<script src="assets/js/renderer.js"></script>
+<script src="assets/js/reader.js"></script>
+<script src="assets/js/tests.js"></script>
+<script>
+(async function(){
+ try{
+  var text = '<!doctype html><html><body><h1>PaperPack 20KB</h1><p>' + 'abcçğıöşü-'.repeat(2600) + '</p></body></html>';
+  var item={name:'buyuk-test.html',mime:'text/html',description:'desc',bytes:PP.utils.textToBytes(text),showName:true,showDescription:true,showTech:true,passwordMode:'none'};
+  var settings={useCompression:false,globalPassword:'',gridSize:null,showFrame:true,pageMode:'title-desc',includeReaderLink:false,readerLink:''};
+  var pkg=await PP.encoder.makePackage(item,settings);
+  var transports=PP.encoder.makeTransportPackages(pkg.envelope,settings);
+  if(transports.length < 2) throw new Error('Parçalama bekleniyordu ama oluşmadı');
+  var prepared=[];
+  for(var i=0;i<transports.length;i++){
+    var tr=transports[i];
+    var matrix=PP.encoder.createMatrix(tr.bytes,tr.gridSize,true);
+    var raw=PP.renderer.drawMatrixToCanvas(matrix.matrix,matrix.gridSize,5);
+    PP.tests.verifyRawSquare(raw,tr.bytes,matrix.gridSize);
+    prepared.push({source:item,pkg:pkg,transport:tr,matrix:matrix,rawCanvas:raw});
+  }
+  var a4=PP.renderer.makeA4(prepared,settings);
+  var res=PP.tests.verifyA4PagesByPlacements(a4,function(m){});
+  var chunks=res.results.map(function(r){ return PP.encoder.parseTransportPackage(r.packageBytes); });
+  var env=PP.encoder.assembleChunks(chunks);
+  var parsed=PP.encoder.parseEnvelope(env);
+  var opened=await PP.encoder.openDecodedFile(parsed,'');
+  if(PP.utils.bytesToText(opened.bytes) !== text) throw new Error('Açılan veri orijinalle aynı değil');
+  document.getElementById('out').textContent='OK chunks='+transports.length+' pages='+a4.canvases.length+' bytes='+opened.bytes.length;
+ }catch(e){document.getElementById('out').textContent='ERR '+(e.stack||e.message);}
+})();
+</script></body></html>

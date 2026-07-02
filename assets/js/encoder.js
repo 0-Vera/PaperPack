@@ -11,11 +11,23 @@
     for(var y=0;y<n;y++) for(var x=0;x<n;x++) out[y*n+x] = matrix[(n-1-x)*n+y];
     return out;
   }
+  function makeId(){
+    var bytes = new Uint8Array(8);
+    if(window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+    else for(var i=0;i<bytes.length;i++) bytes[i] = Math.floor(Math.random()*256);
+    var s = '';
+    for(var j=0;j<bytes.length;j++) s += bytes[j].toString(16).padStart(2,'0');
+    return s;
+  }
 
   PP.encoder = {
     capacityBytes: function(gridSize){
       var dataBits = (gridSize - 8) * (gridSize - 8);
       return Math.floor(dataBits / 8) - 16;
+    },
+    chunkHeaderSize: function(){ return 48; },
+    chunkCapacityBytes: function(gridSize){
+      return Math.max(1, this.capacityBytes(gridSize) - this.chunkHeaderSize());
     },
     buildEnvelope: function(meta, storedBytes){
       var nameBytes = PP.utils.textToBytes(meta.name || 'dosya.txt');
@@ -135,9 +147,14 @@
       stream.set(PP.config.magicSquare, 0);
       var view = new DataView(stream.buffer);
       view.setUint8(4, PP.config.version);
-      view.setUint8(5, gridSize);
-      view.setUint8(6, 0);
-      view.setUint8(7, 0);
+      if(gridSize > 255){
+        view.setUint8(5, 255);
+        PP.utils.writeU16(view, 6, gridSize);
+      }else{
+        view.setUint8(5, gridSize);
+        view.setUint8(6, 0);
+        view.setUint8(7, 0);
+      }
       PP.utils.writeU32(view, 8, packageBytes.length);
       PP.utils.writeU32(view, 12, PP.crc32(packageBytes));
       stream.set(packageBytes, 16);
@@ -176,7 +193,8 @@
       var version = view.getUint8(4);
       if(version !== PP.config.version) throw new Error('Desteklenmeyen veri karesi sürümü: ' + version);
       var declaredGrid = view.getUint8(5);
-      if(declaredGrid !== gridSize) throw new Error('Grid boyutu uyuşmuyor.');
+      if(declaredGrid === 255) declaredGrid = PP.utils.readU16(view, 6);
+      if(declaredGrid !== gridSize) throw new Error('Grid boyutu uyuşmüyor.');
       var len = PP.utils.readU32(view, 8);
       var crc = PP.utils.readU32(view, 12);
       if(len < 1 || len > stream.length - 16) throw new Error('Paket uzunluğu geçersiz.');
@@ -192,6 +210,106 @@
         catch(err){ lastErr = err; m = rotateMatrix(m, gridSize); }
       }
       throw lastErr || new Error('Veri karesi okunamadı.');
+    },
+    chooseGrid: function(envelopeLength, settings){
+      var readable = PP.config.autoReadableDensities || [129,177,241];
+      var all = PP.config.densities || readable;
+      if(settings.gridSize && isFinite(settings.gridSize)) return { gridSize: settings.gridSize, mode: 'selected' };
+      for(var i=0;i<readable.length;i++){
+        if(envelopeLength <= this.capacityBytes(readable[i])) return { gridSize: readable[i], mode: 'auto-direct' };
+      }
+      for(var j=0;j<all.length;j++){
+        if(envelopeLength <= this.capacityBytes(all[j])) return { gridSize: all[j], mode: 'auto-direct-high' };
+      }
+      return { gridSize: PP.config.autoChunkGrid || 241, mode: 'auto-chunk' };
+    },
+    buildChunkPackage: function(fileId, index, total, totalLength, fileCrc, chunkBytes){
+      if(total > 65535) throw new Error('Parça sayısı çok yüksek. Dosyayı küçültün veya daha yüksek yoğunluk seçin.');
+      var fixed = this.chunkHeaderSize();
+      var idBytes = PP.utils.textToBytes(String(fileId || '').slice(0,16));
+      var out = new Uint8Array(fixed + chunkBytes.length);
+      out.set(PP.config.magicChunk, 0);
+      var view = new DataView(out.buffer);
+      view.setUint8(4, 1);
+      view.setUint8(5, 0);
+      PP.utils.writeU16(view, 6, index);
+      PP.utils.writeU16(view, 8, total);
+      PP.utils.writeU32(view, 10, totalLength);
+      PP.utils.writeU32(view, 14, fileCrc);
+      PP.utils.writeU32(view, 18, chunkBytes.length);
+      PP.utils.writeU32(view, 22, PP.crc32(chunkBytes));
+      PP.utils.writeU16(view, 26, 0);
+      for(var i=0;i<16;i++) out[32+i] = idBytes[i] || 0;
+      out.set(chunkBytes, fixed);
+      return out;
+    },
+    parseChunkPackage: function(bytes){
+      if(bytes.length < this.chunkHeaderSize() || !assertMagic(bytes, 0, PP.config.magicChunk)) throw new Error('PaperPack parça paketi değil.');
+      var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      var version = view.getUint8(4);
+      if(version !== 1) throw new Error('Desteklenmeyen parça sürümü: ' + version);
+      var index = PP.utils.readU16(view, 6);
+      var total = PP.utils.readU16(view, 8);
+      var totalLength = PP.utils.readU32(view, 10);
+      var fileCrc = PP.utils.readU32(view, 14);
+      var chunkLen = PP.utils.readU32(view, 18);
+      var chunkCrc = PP.utils.readU32(view, 22);
+      var idBytes = bytes.slice(32,48);
+      var id = PP.utils.bytesToText(idBytes).replace(/\0+$/g,'');
+      var off = this.chunkHeaderSize();
+      if(index < 1 || index > total || total < 2) throw new Error('Parça numarası geçersiz.');
+      if(off + chunkLen > bytes.length) throw new Error('Parça verisi eksik veya kesilmiş.');
+      var chunkBytes = bytes.slice(off, off + chunkLen);
+      if(PP.crc32(chunkBytes) !== chunkCrc) throw new Error('Parça CRC kontrolünden geçmedi.');
+      return { type:'chunk', id:id, index:index, total:total, totalLength:totalLength, fileCrc:fileCrc, chunkBytes:chunkBytes };
+    },
+    parseTransportPackage: function(bytes){
+      if(bytes.length >= 4 && assertMagic(bytes, 0, PP.config.magicFile)) return { type:'file', envelopeBytes:bytes };
+      if(bytes.length >= 4 && assertMagic(bytes, 0, PP.config.magicChunk)) return this.parseChunkPackage(bytes);
+      throw new Error('PaperPack dosya veya parça paketi değil.');
+    },
+    makeTransportPackages: function(envelopeBytes, settings){
+      var gridPlan = this.chooseGrid(envelopeBytes.length, settings);
+      var grid = gridPlan.gridSize;
+      if(envelopeBytes.length <= this.capacityBytes(grid)){
+        return [{ bytes: envelopeBytes, gridSize: grid, type:'file', index:1, total:1, mode:gridPlan.mode }];
+      }
+      var chunkCap = this.chunkCapacityBytes(grid);
+      var total = Math.ceil(envelopeBytes.length / chunkCap);
+      var id = makeId();
+      var crc = PP.crc32(envelopeBytes);
+      var out = [];
+      for(var i=0;i<total;i++){
+        var start = i * chunkCap;
+        var chunk = envelopeBytes.slice(start, Math.min(envelopeBytes.length, start + chunkCap));
+        out.push({
+          bytes: this.buildChunkPackage(id, i+1, total, envelopeBytes.length, crc, chunk),
+          gridSize: grid,
+          type: 'chunk',
+          id: id,
+          index: i+1,
+          total: total,
+          mode: gridPlan.mode
+        });
+      }
+      return out;
+    },
+    assembleChunks: function(chunks){
+      if(!chunks || !chunks.length) throw new Error('Birleştirilecek parça yok.');
+      chunks = chunks.slice().sort(function(a,b){ return a.index - b.index; });
+      var first = chunks[0];
+      if(chunks.length !== first.total) throw new Error('Parçalar eksik: ' + chunks.length + '/' + first.total + '.');
+      var parts = [];
+      for(var i=0;i<chunks.length;i++){
+        var c = chunks[i];
+        if(c.id !== first.id || c.total !== first.total || c.totalLength !== first.totalLength || c.fileCrc !== first.fileCrc) throw new Error('Parça bilgileri birbiriyle uyuşmuyor.');
+        if(c.index !== i+1) throw new Error('Parça sırası eksik veya bozuk.');
+        parts.push(c.chunkBytes);
+      }
+      var envelope = PP.utils.concatBytes(parts);
+      if(envelope.length !== first.totalLength) throw new Error('Birleştirilen dosya boyutu uyuşmuyor.');
+      if(PP.crc32(envelope) !== first.fileCrc) throw new Error('Birleştirilen dosya CRC kontrolünden geçmedi.');
+      return envelope;
     },
     openDecodedFile: async function(parsed, password){
       var bytes = parsed.storedBytes;

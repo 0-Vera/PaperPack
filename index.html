@@ -72,10 +72,11 @@
           <div class="field">
             <label for="densitySelect">Veri yoğunluğu</label>
             <select id="densitySelect">
+              <option value="auto" selected>Otomatik · dosyaya göre seç / gerekirse parçala</option>
               <option value="129">Standart · daha rahat okunur</option>
-              <option value="177" selected>Dengeli · önerilen</option>
-              <option value="241">Yüksek · küçük dosyalar için</option>
-              <option value="289">Ultra · baskı/fotoğraf kalitesi iyi olmalı</option>
+              <option value="177">Dengeli · önerilen</option>
+              <option value="241">Yüksek · okunabilir büyük çıktı</option>
+              <option value="289">Ultra · daha az parça, daha iyi baskı ister</option>
             </select>
             <small id="capacityHint"></small>
           </div>
@@ -130,6 +131,7 @@
         </div>
         <div class="preview-wrap">
           <canvas id="a4Canvas" aria-label="A4 PaperPack çıktısı"></canvas>
+          <div id="extraPages" class="extra-pages"></div>
         </div>
         <div id="squareDownloads" class="square-downloads"></div>
       </section>
@@ -165,7 +167,7 @@
     <section id="helpPanel" class="panel">
       <section class="card prose">
         <h2>Çalışma mantığı</h2>
-        <p>PaperPack klasik QR üretmez. Sabit geometriye sahip kendi veri karesini üretir. Encoder ve decoder aynı çekirdeği kullanır. Çıktı butonları yalnızca ham kare testi ve A4 üzerinde otomatik okuma testi başarılı olursa açılır.</p>
+        <p>PaperPack klasik QR üretmez. Sabit geometriye sahip kendi veri karesini üretir. Encoder ve decoder aynı çekirdeği kullanır. Çıktı üretirken önce ham kare testi, sonra A4 üzerindeki otomatik okuma testi çalışır. Büyük dosyalar tek kareye sığmazsa dosya parçalara ayrılır; boş slot veya sahte doldurma karesi basılmaz.</p>
         <p>Şifreleme açıksa dosya verisi Web Crypto API ile PBKDF2-SHA256 + AES-GCM kullanılarak korunur. Zayıf şifrelerde A4 çıktısı ele geçirilirse offline parola denemesi yapılabileceği için uygulama açık uyarı gösterir.</p>
         <p>Offline kullanım için harici paket, CDN, framework, backend, database, manifest veya service worker yoktur. Scriptler klasik sırayla yüklenir; ES module/fetch kullanılmaz.</p>
       </section>

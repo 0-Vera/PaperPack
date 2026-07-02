@@ -5,9 +5,11 @@
   var manualPoints = [];
 
   function getSettings(){
+    var densityValue = $('densitySelect').value;
     return {
       mode: $('appMode').value,
-      gridSize: parseInt($('densitySelect').value, 10),
+      densityMode: densityValue,
+      gridSize: densityValue === 'auto' ? null : parseInt(densityValue, 10),
       pageMode: $('pageMode').value,
       showFrame: $('showFrame').checked,
       includeReaderLink: $('includeReaderLink').checked,
@@ -28,8 +30,13 @@
     if(isLocal && !$('readerLink').value.trim()) $('readerLink').value = PP.config.readerLinkDefault;
   }
   function updateCapacityHint(){
-    var g = parseInt($('densitySelect').value, 10);
-    $('capacityHint').textContent = 'Tek kare güvenli kapasitesi yaklaşık ' + PP.utils.formatBytes(PP.encoder.capacityBytes(g)) + '. Şifreleme ve başlık bilgileri bu kapasiteden yer.';
+    var v = $('densitySelect').value;
+    if(v === 'auto'){
+      $('capacityHint').textContent = 'Otomatik mod küçük dosyada rahat okunur grid seçer; dosya sığmazsa boşluk doldurmadan aynı dosyayı birden fazla veri karesine böler.';
+      return;
+    }
+    var g = parseInt(v, 10);
+    $('capacityHint').textContent = 'Tek kare güvenli kapasitesi yaklaşık ' + PP.utils.formatBytes(PP.encoder.capacityBytes(g)) + '. Daha büyük paketler aynı grid ile parçalara ayrılır.';
   }
   function updatePasswordHint(){
     var score = PP.cryptoBox.passwordScore($('globalPassword').value);
@@ -44,7 +51,9 @@
     $('downloadSvgBtn').disabled = true;
     $('printBtn').disabled = true;
     $('squareDownloads').innerHTML = '';
+    if($('extraPages')) $('extraPages').innerHTML = '';
     $('testStatus').textContent = 'İç test bekleniyor.';
+    $('testStatus').className = 'muted';
   }
   function renderFileList(){
     var box = $('fileList');
@@ -55,7 +64,7 @@
       card.className = 'file-card';
       card.innerHTML = ''+
         '<div class="file-card-head">'+
-          '<div><h3>'+(index+1)+'. '+PP.utils.escapeHtml(item.name)+'</h3><span class="badge">'+PP.utils.escapeHtml(item.mime || 'text/plain')+' · '+PP.utils.formatBytes(item.bytes.length)+'</span></div>'+
+          '<div><h3>'+(index+1)+'. '+PP.utils.escapeHtml(item.name)+'</h3><span class="badge">'+PP.utils.escapeHtml(item.mime || 'text/plain')+' · '+PP.utils.formatBytes(item.bytes.length)+'</span></div>'+ 
           '<button class="btn ghost" data-remove="'+item.id+'">Kaldır</button>'+ 
         '</div>'+ 
         '<div class="field"><label>Açıklama</label><input type="text" data-field="description" data-id="'+item.id+'" value="'+PP.utils.escapeHtml(item.description)+'" placeholder="Opsiyonel açıklama"></div>'+ 
@@ -81,10 +90,7 @@
       var field = e.target.getAttribute('data-field');
       if(!id || !field) return;
       var item = findItem(id); if(!item) return;
-      if(e.target.type === 'text' || e.target.type === 'password') {
-        item[field] = e.target.value;
-        resetOutput();
-      }
+      if(e.target.type === 'text' || e.target.type === 'password') { item[field] = e.target.value; resetOutput(); }
     });
     $('fileList').addEventListener('change', function(e){
       var id = e.target.getAttribute('data-id');
@@ -114,6 +120,24 @@
     try{ PP.state.addItem({ name:name, mime:mime, bytes:PP.utils.textToBytes(text) }); renderFileList(); }
     catch(err){ PP.utils.logStatus($('createStatus'), err.message, 'err'); }
   }
+  function rawModulePx(gridSize){ return Math.max(3, Math.floor(1280 / (gridSize + PP.config.quietModules*2))); }
+  function renderPreviewPages(a4){
+    var extra = $('extraPages');
+    if(!extra) return;
+    extra.innerHTML = '';
+    if(!a4 || !a4.canvases || a4.canvases.length <= 1) return;
+    for(var i=1;i<a4.canvases.length;i++){
+      var note = document.createElement('div');
+      note.className = 'page-note';
+      note.textContent = 'A4 sayfa ' + (i+1) + '/' + a4.canvases.length;
+      var c = document.createElement('canvas');
+      c.width = a4.canvases[i].width;
+      c.height = a4.canvases[i].height;
+      c.getContext('2d').drawImage(a4.canvases[i], 0, 0);
+      extra.appendChild(note);
+      extra.appendChild(c);
+    }
+  }
   async function generate(){
     var status = $('createStatus'); PP.utils.clearStatus(status); resetOutput();
     if(!PP.state.items.length){ PP.utils.logStatus(status, 'Önce dosya veya manuel metin ekleyin.', 'warn'); return; }
@@ -126,6 +150,7 @@
     try{
       PP.utils.logStatus(status, 'paketler hazırlanıyor');
       var prepared = [];
+      var logicalCount = PP.state.items.length;
       for(var i=0;i<PP.state.items.length;i++){
         var item = PP.state.items[i];
         var password = item.passwordMode === 'custom' ? item.customPassword : (item.passwordMode === 'global' ? settings.globalPassword : '');
@@ -134,22 +159,37 @@
           if(s.level === 'weak') PP.utils.logStatus(status, item.name + ': zayıf şifre kullanılıyor. A4 ele geçirilirse offline parola denemesi yapılabilir.', 'warn');
         }
         var pkg = await PP.encoder.makePackage(item, settings);
-        var matrix = PP.encoder.createMatrix(pkg.envelope, settings.gridSize, settings.showFrame);
-        var rawCanvas = PP.renderer.drawMatrixToCanvas(matrix.matrix, matrix.gridSize, Math.max(3, Math.floor(1280 / (matrix.gridSize + PP.config.quietModules*2))));
-        PP.tests.verifyRawSquare(rawCanvas, pkg.envelope, matrix.gridSize);
-        prepared.push({ source:item, pkg:pkg, matrix:matrix, rawCanvas:rawCanvas });
-        PP.utils.logStatus(status, item.name + ': ham kare iç testi başarılı · ' + PP.utils.formatBytes(pkg.envelope.length) + ' / ' + PP.utils.formatBytes(matrix.capacity), 'ok');
+        PP.utils.logStatus(status, item.name + ': ' + pkg.note + ' · paket ' + PP.utils.formatBytes(pkg.envelope.length));
+        var transports = PP.encoder.makeTransportPackages(pkg.envelope, settings);
+        if(transports.length > 1){
+          PP.utils.logStatus(status, item.name + ': tek kareye sığmadı, otomatik ' + transports.length + ' parçaya bölündü. Boş doldurma karesi üretilmedi.', 'warn');
+        }
+        for(var t=0;t<transports.length;t++){
+          var tr = transports[t];
+          var matrix = PP.encoder.createMatrix(tr.bytes, tr.gridSize, settings.showFrame);
+          var rawCanvas = PP.renderer.drawMatrixToCanvas(matrix.matrix, matrix.gridSize, rawModulePx(matrix.gridSize));
+          PP.tests.verifyRawSquare(rawCanvas, tr.bytes, matrix.gridSize);
+          prepared.push({ source:item, pkg:pkg, transport:tr, matrix:matrix, rawCanvas:rawCanvas });
+          var label = tr.type === 'chunk' ? ('parça ' + tr.index + '/' + tr.total) : 'tek kare';
+          PP.utils.logStatus(status, item.name + ': ' + label + ' ham iç test başarılı · grid ' + matrix.gridSize + ' · ' + PP.utils.formatBytes(tr.bytes.length) + ' / ' + PP.utils.formatBytes(matrix.capacity), 'ok');
+        }
       }
+      if(prepared.length > logicalCount) PP.utils.logStatus(status, 'Toplam ' + logicalCount + ' dosya için ' + prepared.length + ' veri karesi oluştu. Çok parçalı dosyada okurken tüm parçaların okutulması gerekir.', 'warn');
+      if(prepared.length > 9) PP.utils.logStatus(status, prepared.length + ' veri karesi 9’dan fazla olduğu için çıktı ' + Math.ceil(prepared.length/9) + ' A4 sayfasına bölünecek.', 'warn');
+      if(prepared.some(function(p){ return p.matrix.gridSize >= 289; })) PP.utils.logStatus(status, 'Ultra yoğun grid kullanılıyor. PNG okuyabilir ama telefon kamerası için net baskı, iyi ışık ve yakın çekim gerekir.', 'warn');
+      if(prepared.length > 18) PP.utils.logStatus(status, 'Çok fazla veri karesi oluştu. Sistem çıktı verebilir; fakat kamerayla okutma pratik olmayabilir. Daha küçük dosya veya daha yüksek yoğunluk daha mantıklı olabilir.', 'warn');
+
       PP.utils.logStatus(status, 'A4 sayfası çiziliyor');
       var a4 = PP.renderer.makeA4(prepared, settings);
+      renderPreviewPages(a4);
       $('outputPanel').classList.remove('hidden');
       $('testStatus').textContent = 'A4 otomatik okuma iç testi çalışıyor...';
       PP.utils.logStatus(status, 'A4 üzerindeki kareler uygulama içinde tekrar okunuyor');
-      var autoRes = await PP.tests.verifyA4Auto(a4.canvas, prepared.length, function(msg){ PP.utils.logStatus(status, msg); });
-      $('testStatus').textContent = 'İç test başarılı: ham kareler ve A4 çıktısı tekrar okunabiliyor. Okunan paket: ' + autoRes.results.length + '/' + prepared.length;
+      var autoRes = PP.tests.verifyA4PagesByPlacements(a4, function(msg){ PP.utils.logStatus(status, msg); });
+      $('testStatus').textContent = 'İç test başarılı: ham kareler ve A4 çıktısı tekrar okunabiliyor. Okunan veri karesi: ' + autoRes.results.length + '/' + prepared.length + (a4.canvases.length > 1 ? ' · sayfa: ' + a4.canvases.length : '');
       $('testStatus').className = 'muted strong';
       $('downloadPngBtn').disabled = false; $('downloadSvgBtn').disabled = false; $('printBtn').disabled = false;
-      renderSquareDownloads(prepared);
+      renderSquareDownloads(prepared, a4);
       PP.state.generated = { settings:settings, items:prepared, a4:a4, auto:autoRes };
       PP.utils.logStatus(status, 'Çıktı hazır. PNG/SVG/yazdırma butonları açıldı.', 'ok');
     }catch(err){
@@ -159,79 +199,158 @@
       console.error(err);
     }
   }
-  function renderSquareDownloads(prepared){
+  function renderSquareDownloads(prepared, a4){
     var box = $('squareDownloads'); box.innerHTML = '';
+    if(a4 && a4.canvases && a4.canvases.length > 1){
+      a4.canvases.forEach(function(canvas, i){
+        var pageBtn = document.createElement('button'); pageBtn.className = 'btn'; pageBtn.textContent = 'A4 sayfa ' + (i+1) + ' PNG indir';
+        pageBtn.addEventListener('click', async function(){
+          var blob = await PP.utils.canvasToBlob(canvas, 'image/png');
+          PP.utils.downloadBlob(blob, 'paperpack-a4-sayfa-' + String(i+1).padStart(2,'0') + '.png');
+        });
+        box.appendChild(pageBtn);
+      });
+    }
     prepared.forEach(function(p, i){
-      var btn = document.createElement('button'); btn.className = 'btn'; btn.textContent = 'Kare PNG indir · ' + (i+1);
+      var btn = document.createElement('button'); btn.className = 'btn';
+      btn.textContent = 'Kare PNG indir · ' + (i+1) + (p.transport && p.transport.type === 'chunk' ? ' / parça ' + p.transport.index + '-' + p.transport.total : '');
       btn.addEventListener('click', async function(){
         var blob = await PP.utils.canvasToBlob(p.rawCanvas, 'image/png');
-        PP.utils.downloadBlob(blob, 'paperpack-kare-' + (i+1) + '.png');
+        PP.utils.downloadBlob(blob, 'paperpack-kare-' + String(i+1).padStart(2,'0') + '.png');
       });
       box.appendChild(btn);
     });
   }
   async function downloadPng(){
     if(!PP.state.generated) return;
-    var blob = await PP.utils.canvasToBlob(PP.state.generated.a4.canvas, 'image/png');
-    PP.utils.downloadBlob(blob, PP.utils.nowName('paperpack-a4','png'));
+    var canvases = PP.state.generated.a4.canvases || [PP.state.generated.a4.canvas];
+    for(var i=0;i<canvases.length;i++){
+      var blob = await PP.utils.canvasToBlob(canvases[i], 'image/png');
+      var name = canvases.length === 1 ? PP.utils.nowName('paperpack-a4','png') : 'paperpack-a4-sayfa-' + String(i+1).padStart(2,'0') + '.png';
+      PP.utils.downloadBlob(blob, name);
+      if(canvases.length > 1) await PP.utils.sleep(220);
+    }
   }
   function downloadSvg(){
     if(!PP.state.generated) return;
-    var svg = PP.renderer.makeSvgFromCanvas(PP.state.generated.a4.canvas);
+    var canvases = PP.state.generated.a4.canvases || [PP.state.generated.a4.canvas];
+    var svg = PP.renderer.makeSvgPages(canvases);
     PP.utils.downloadBlob(new Blob([svg], {type:'image/svg+xml;charset=utf-8'}), PP.utils.nowName('paperpack-a4','svg'));
   }
   function printA4(){
     if(!PP.state.generated) return;
-    var data = PP.state.generated.a4.canvas.toDataURL('image/png');
+    var canvases = PP.state.generated.a4.canvases || [PP.state.generated.a4.canvas];
+    var imgs = canvases.map(function(c){ return '<img src="'+c.toDataURL('image/png')+'" alt="PaperPack A4">'; }).join('');
     var w = window.open('', '_blank');
     if(!w){ alert('Pop-up engellendi. Yazdırma için tarayıcıda pop-up izni verin.'); return; }
-    w.document.write('<!doctype html><html><head><title>PaperPack Yazdır</title><style>@page{size:A4;margin:0}body{margin:0;background:#fff}img{width:210mm;height:297mm;display:block}</style></head><body><img src="'+data+'" alt="PaperPack A4"></body></html>');
+    w.document.write('<!doctype html><html><head><title>PaperPack Yazdır</title><style>@page{size:A4;margin:0}body{margin:0;background:#fff}img{width:210mm;height:297mm;display:block;break-after:page;page-break-after:always}</style></head><body>'+imgs+'</body></html>');
     w.document.close();
     setTimeout(function(){ w.focus(); w.print(); }, 400);
+  }
+  function renderDecodedFileCard(box, parsed, gridSize, note){
+    var card = document.createElement('div'); card.className='result-card';
+    var title = parsed.name || 'paperpack-dosya.txt';
+    card.innerHTML = '<h3>'+PP.utils.escapeHtml(title)+'</h3>'+ 
+      '<div class="result-meta">'+PP.utils.escapeHtml(parsed.mime)+' · '+PP.utils.formatBytes(parsed.originalSize)+' · grid '+(gridSize || '-')+(parsed.encrypted?' · şifreli':' · şifresiz')+(parsed.compressed?' · sıkıştırılmış':'')+'</div>'+ 
+      (note ? '<p class="muted">'+PP.utils.escapeHtml(note)+'</p>' : '')+
+      (parsed.description ? '<p>'+PP.utils.escapeHtml(parsed.description)+'</p>' : '')+
+      (parsed.encrypted ? '<div class="field"><label>Şifre</label><input type="password" class="result-password" autocomplete="current-password" placeholder="Şifreyi gir"></div>' : '')+
+      '<div class="result-actions"><button class="btn primary open-btn">Aç</button><button class="btn save-btn">Dosya indir</button></div><div class="status mini-status"></div>';
+    box.appendChild(card);
+    var mini = card.querySelector('.mini-status');
+    async function getFile(){
+      var pwInput = card.querySelector('.result-password');
+      var pw = pwInput ? pwInput.value : '';
+      return PP.encoder.openDecodedFile(parsed, pw);
+    }
+    card.querySelector('.open-btn').addEventListener('click', async function(){
+      mini.innerHTML='';
+      try{
+        var file = await getFile();
+        var blob = new Blob([file.bytes], {type:file.mime || 'text/plain'});
+        var url = URL.createObjectURL(blob);
+        var opened = window.open(url, '_blank');
+        if(!opened){ PP.utils.logStatus(mini, 'Pop-up engellendi. Açma işlemi kullanıcı butonuna bağlı olduğu halde tarayıcı engelledi.', 'warn'); }
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+      }catch(err){ PP.utils.logStatus(mini, err.message || 'Şifre hatalı veya veri bozuk.', 'err'); }
+    });
+    card.querySelector('.save-btn').addEventListener('click', async function(){
+      mini.innerHTML='';
+      try{
+        var file = await getFile();
+        PP.utils.downloadBlob(new Blob([file.bytes], {type:file.mime || 'application/octet-stream'}), file.name || 'paperpack-dosya.txt');
+      }catch(err){ PP.utils.logStatus(mini, err.message || 'Şifre hatalı veya veri bozuk.', 'err'); }
+    });
+  }
+  function storeChunk(chunk){
+    if(!PP.state.chunkStore[chunk.id]) PP.state.chunkStore[chunk.id] = { total:chunk.total, chunks:{}, lastGrid:null };
+    var slot = PP.state.chunkStore[chunk.id];
+    slot.total = chunk.total;
+    slot.chunks[chunk.index] = chunk;
+    return slot;
+  }
+  function chunkArray(slot){
+    var arr = [];
+    for(var k in slot.chunks){ if(Object.prototype.hasOwnProperty.call(slot.chunks,k)) arr.push(slot.chunks[k]); }
+    arr.sort(function(a,b){ return a.index-b.index; });
+    return arr;
   }
   function renderReadResults(packages){
     var box = $('readResults');
     if(!packages.length){ box.className='read-results empty'; box.textContent='Paket okunamadı.'; return; }
     box.className = 'read-results'; box.innerHTML = '';
+    var directCount = 0, completed = {}, progress = [];
     packages.forEach(function(pkg, idx){
-      var parsed;
-      try{ parsed = PP.encoder.parseEnvelope(pkg.packageBytes); }
+      var transport;
+      try{ transport = PP.encoder.parseTransportPackage(pkg.packageBytes); }
       catch(err){
         var bad = document.createElement('div'); bad.className='result-card'; bad.textContent='Paket başlığı okunamadı: ' + err.message; box.appendChild(bad); return;
       }
-      var card = document.createElement('div'); card.className='result-card';
-      var title = parsed.name || ('paket-' + (idx+1));
-      card.innerHTML = '<h3>'+PP.utils.escapeHtml(title)+'</h3>'+ 
-        '<div class="result-meta">'+PP.utils.escapeHtml(parsed.mime)+' · '+PP.utils.formatBytes(parsed.originalSize)+' · grid '+pkg.gridSize+(parsed.encrypted?' · şifreli':' · şifresiz')+(parsed.compressed?' · sıkıştırılmış':'')+'</div>'+ 
-        (parsed.description ? '<p>'+PP.utils.escapeHtml(parsed.description)+'</p>' : '')+
-        (parsed.encrypted ? '<div class="field"><label>Şifre</label><input type="password" class="result-password" autocomplete="current-password" placeholder="Şifreyi gir"></div>' : '')+
-        '<div class="result-actions"><button class="btn primary open-btn">Aç</button><button class="btn save-btn">Dosya indir</button></div><div class="status mini-status"></div>';
-      box.appendChild(card);
-      var mini = card.querySelector('.mini-status');
-      async function getFile(){
-        var pwInput = card.querySelector('.result-password');
-        var pw = pwInput ? pwInput.value : '';
-        return PP.encoder.openDecodedFile(parsed, pw);
+      if(transport.type === 'file'){
+        try{ renderDecodedFileCard(box, PP.encoder.parseEnvelope(transport.envelopeBytes), pkg.gridSize, 'Tek kareden okundu.'); directCount++; }
+        catch(err2){ var bad2 = document.createElement('div'); bad2.className='result-card'; bad2.textContent='Dosya paketi okunamadı: ' + err2.message; box.appendChild(bad2); }
+        return;
       }
-      card.querySelector('.open-btn').addEventListener('click', async function(){
-        mini.innerHTML='';
+      var slot = storeChunk(transport);
+      slot.lastGrid = pkg.gridSize;
+      var arr = chunkArray(slot);
+      if(arr.length === slot.total){
         try{
-          var file = await getFile();
-          var blob = new Blob([file.bytes], {type:file.mime || 'text/plain'});
-          var url = URL.createObjectURL(blob);
-          var opened = window.open(url, '_blank');
-          if(!opened){ PP.utils.logStatus(mini, 'Pop-up engellendi. Açma işlemi kullanıcı butonuna bağlı olduğu halde tarayıcı engelledi.', 'warn'); }
-          setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
-        }catch(err){ PP.utils.logStatus(mini, err.message, 'err'); }
-      });
-      card.querySelector('.save-btn').addEventListener('click', async function(){
-        mini.innerHTML='';
-        try{
-          var file = await getFile();
-          PP.utils.downloadBlob(new Blob([file.bytes], {type:file.mime || 'application/octet-stream'}), file.name || 'paperpack-dosya.txt');
-        }catch(err){ PP.utils.logStatus(mini, err.message, 'err'); }
-      });
+          var envelope = PP.encoder.assembleChunks(arr);
+          var parsed = PP.encoder.parseEnvelope(envelope);
+          completed[transport.id] = true;
+          renderDecodedFileCard(box, parsed, pkg.gridSize, 'Parçalı dosya tamamlandı: ' + arr.length + '/' + slot.total + ' parça.');
+        }catch(err3){
+          var bad3 = document.createElement('div'); bad3.className='result-card'; bad3.textContent='Parçalar birleştirilemedi: ' + err3.message; box.appendChild(bad3);
+        }
+      }else{
+        progress.push({ id:transport.id, count:arr.length, total:slot.total });
+      }
     });
+    Object.keys(PP.state.chunkStore).forEach(function(id){
+      if(completed[id]) return;
+      var slot = PP.state.chunkStore[id];
+      var arr = chunkArray(slot);
+      if(!arr.length) return;
+      if(arr.length === slot.total){
+        try{
+          var envelope = PP.encoder.assembleChunks(arr);
+          var parsed = PP.encoder.parseEnvelope(envelope);
+          completed[id] = true;
+          renderDecodedFileCard(box, parsed, slot.lastGrid || '-', 'Parçalı dosya tamamlandı: ' + arr.length + '/' + slot.total + ' parça.');
+        }catch(err4){
+          var bad4 = document.createElement('div'); bad4.className='result-card'; bad4.textContent='Parçalar birleştirilemedi: ' + err4.message; box.appendChild(bad4);
+        }
+      }else if(!progress.some(function(p){ return p.id === id; })){
+        progress.push({ id:id, count:arr.length, total:slot.total });
+      }
+    });
+    progress.forEach(function(p){
+      var card = document.createElement('div'); card.className = 'result-card';
+      card.innerHTML = '<h3>Parçalı dosya bekleniyor</h3><div class="result-meta">'+PP.utils.escapeHtml(p.id)+' · '+p.count+'/'+p.total+' parça okundu</div><p class="muted">Bu dosya için eksik A4 sayfasını veya eksik kareleri de okut. Tamamlanınca açma/indirme butonları burada çıkacak.</p>';
+      box.appendChild(card);
+    });
+    if(!directCount && !Object.keys(completed).length && !progress.length){ box.className='read-results empty'; box.textContent='Paket okunamadı.'; }
   }
   function drawReaderPreview(canvas){
     var out = $('readerCanvas');
@@ -266,7 +385,7 @@
         $('readResults').className='read-results empty'; $('readResults').textContent=msg;
         return;
       }
-      PP.utils.logStatus(status, 'Okuma tamamlandı. Paket sayısı: ' + res.results.length, 'ok');
+      PP.utils.logStatus(status, 'Okuma tamamlandı. Veri karesi sayısı: ' + res.results.length, 'ok');
       renderReadResults(res.results);
     }catch(err){
       PP.utils.logStatus(status, err.message, 'err');
@@ -296,9 +415,7 @@
         var res = PP.decoder.decodeManual(PP.state.readImageCanvas, manualPoints);
         PP.utils.logStatus($('readStatus'), 'Manuel köşe seçimiyle paket okundu.', 'ok');
         renderReadResults([res]);
-      }catch(err){
-        PP.utils.logStatus($('readStatus'), err.message + ' Köşeleri tam dış çerçevenin üzerinden seçmeyi deneyin.', 'err');
-      }
+      }catch(err){ PP.utils.logStatus($('readStatus'), err.message + ' Köşeleri tam dış çerçevenin üzerinden seçmeyi deneyin.', 'err'); }
       manualPoints = [];
     }
   }
