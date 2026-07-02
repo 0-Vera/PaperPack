@@ -124,3 +124,26 @@ button.secondary{background:#444}
   .field.small{max-width:none}
   .reader-url{white-space:normal}
 }
+
+/* v10 output layout controls */
+.small-textarea{min-height:70px!important;font-size:12px!important}
+.output-options{grid-template-columns:repeat(2,1fr)}
+.reader-settings{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start;border:1px solid var(--line);border-radius:14px;padding:12px;margin:4px 0 14px;background:#fbfbfa}
+.reader-link-field{margin-bottom:0}
+.paper-title{display:flex;justify-content:space-between;gap:14px;align-items:center;border:1px solid #111;border-radius:6px;padding:8px 10px;margin-bottom:14px;font-size:10px;background:#fff}
+.paper-title-main strong{font-size:17px;display:block;letter-spacing:-.2px;margin-bottom:2px}
+.paper-title-main span{font-size:10px;color:#222}
+.reader-box{display:flex;align-items:center;gap:8px;min-width:230px;justify-content:flex-end}
+.reader-text{font-size:8px;line-height:1.2;text-align:right;max-width:150px;color:#222}
+.reader-text b{display:block;font-size:10px;margin-bottom:2px}.reader-text span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.paper-description{border:1px solid #111;border-radius:6px;padding:8px 10px;margin-top:12px;font-size:10px;line-height:1.35;color:#111;background:#fff;white-space:pre-wrap}
+.paper.layout-minimal{padding:18px}.paper.layout-minimal .single-card{margin-top:18px}.paper.layout-minimal .nine-grid{height:1060px}
+.paper:not(.layout-has-title) .single-card{margin-top:20px}
+@media(max-width:760px){.output-options{display:block}.reader-settings{display:block;border-radius:10px;padding:10px}.small-textarea{min-height:72px!important}}
+@media print{.paper-description{break-inside:avoid}.paper-title{break-inside:avoid}}
+
+/* v10 mobile: keep paper renderable off-screen so PNG/SVG/print generation still works */
+@media(max-width:760px){
+  .paper-wrap{display:block!important;position:absolute!important;left:-12000px!important;top:0!important;width:794px!important;height:auto!important;overflow:visible!important;padding:0!important;border:0!important;margin:0!important;opacity:0!important;pointer-events:none!important}
+  .paper-wrap .paper{width:794px!important;min-height:1123px!important;padding:30px!important;box-shadow:none!important}
+}

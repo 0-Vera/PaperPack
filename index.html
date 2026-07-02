@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PaperPack</title>
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=10" />
   <!-- PWA manifest kapalı: GitHub Pages üzerinde sade ve cache sorunsuz kullanım için. -->
   <meta name="theme-color" content="#111111" />
 </head>
@@ -14,7 +14,7 @@
       <h1>PaperPack</h1>
       <p>Dosyayı A4 veri desenine çevir, çıktıyı okutunca dosyayı geri aç.</p>
     </div>
-    <span class="badge">statik / bağımlılıksız / v9</span>
+    <span class="badge">statik / bağımlılıksız / v10</span>
   </header>
 
   <main>
@@ -65,18 +65,47 @@
           <span>Opsiyonel şifre</span>
           <input id="password" type="password" autocomplete="new-password" placeholder="Boş bırakırsan şifresiz olur" />
         </label>
-        <label class="field checkboxline">
-          <input id="hideNames" type="checkbox" />
-          <span>Baskıda dosya adını gizle</span>
+        <label class="field">
+          <span>Sayfa yapısı</span>
+          <select id="pagePreset">
+            <option value="minimal">Sade: sadece veri karesi</option>
+            <option value="note">Açıklamalı: kare + alt metin</option>
+            <option value="standard" selected>Standart: temiz başlık + okuyucu QR</option>
+            <option value="full">Tam bilgi: başlık + QR + dosya bilgisi + açıklama</option>
+          </select>
         </label>
       </div>
 
-      <div class="grid2">
+      <div class="grid2 output-options">
+        <label class="field checkboxline compact-check">
+          <input id="showTechInfo" type="checkbox" checked />
+          <span>Üst başlık / teknik bilgiyi göster</span>
+        </label>
+        <label class="field checkboxline compact-check">
+          <input id="showFileMeta" type="checkbox" />
+          <span>Kare üstünde dosya adı / boyut bilgisini göster</span>
+        </label>
+        <label class="field checkboxline compact-check">
+          <input id="hideNames" type="checkbox" />
+          <span>Dosya adını gizle</span>
+        </label>
+        <label class="field checkboxline compact-check">
+          <input id="includeDescription" type="checkbox" />
+          <span>Kare altına açıklama metni ekle</span>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Açıklama metni</span>
+        <textarea id="outputDescription" class="small-textarea" placeholder="İsteğe bağlı. Örn: Bu kağıdı okutmak için üstteki PaperPack linkini açın, veriyi tarayın, şifreyi girin."></textarea>
+      </label>
+
+      <div class="reader-settings">
         <label class="field checkboxline compact-check">
           <input id="includeReaderQr" type="checkbox" checked />
           <span>A4 üstüne okuyucu link QR'ı ekle</span>
         </label>
-        <label class="field">
+        <label class="field reader-link-field">
           <span>Okuyucu linki</span>
           <input id="readerLink" type="url" value="https://0-vera.github.io/PaperPack/" />
         </label>
@@ -164,9 +193,9 @@
     </div>
   </template>
 
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
   <script>
-    // v9: Service worker kapalı. Eski cache, app.js güncellemelerini bozabiliyordu.
+    // v10: Service worker kapalı. Eski cache, app.js güncellemelerini bozabiliyordu.
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       window.addEventListener('load', async () => {
         try {

@@ -1,4 +1,4 @@
-# PaperPack Web v9
+# PaperPack Web v10
 
 Dosyayı/metni A4 üzerine basılabilir veri desenine çevirir; sonra fotoğraf/görsel olarak okutunca dosyayı geri çıkarır. Tamamen statik çalışır.
 
@@ -13,9 +13,9 @@ GitHub Pages için dosyaları depoya yükle:
 
 Sonra GitHub → Settings → Pages → Deploy from branch → `main` / `/root`.
 
-> Not: v9'de service worker/PWA cache geçici olarak kapatıldı. Eski sürümlerde app.js cache'te kaldığı için okuma motoru güncellemesi görünmeyebiliyordu.
+> Not: v10'de service worker/PWA cache geçici olarak kapatıldı. Eski sürümlerde app.js cache'te kaldığı için okuma motoru güncellemesi görünmeyebiliyordu.
 
-## v9 değişiklikleri
+## v10 değişiklikleri
 
 - Varsayılan yoğunluk `Otomatik / önerilen` oldu.
 - Küçük dosyalarda 256×256 yerine gerekli en küçük grid seçilir. Bu, hücreleri büyütür ve okumayı kolaylaştırır.
@@ -40,7 +40,7 @@ Sonra GitHub → Settings → Pages → Deploy from branch → `main` / `/root`.
 - npm, backend, CDN veya harici kütüphane yoktur.
 
 
-## v9 mobil güncelleme
+## v10 mobil güncelleme
 
 - Mobilde A4 önizleme gizlendi.
 - Mobilde manuel seçim/önizleme alanı gizlendi; okuyucu otomatik okuma akışına indirildi.
@@ -48,3 +48,11 @@ Sonra GitHub → Settings → Pages → Deploy from branch → `main` / `/root`.
 - iOS zoom sorununu azaltmak için form yazı boyutları mobilde 16px yapıldı.
 
 Güçlü şifre önerisi: en az 20 karakter, tahmin edilemeyen ve karışık bir parola kullanın. Zayıf parola kullanılırsa şifreleme algoritması güçlü olsa bile offline parola denemelerine açık kalır.
+
+
+## v10 çıktı düzeni
+
+- A4 sayfa yapısı artık Sade / Açıklamalı / Standart / Tam bilgi olarak seçilebilir.
+- Dosya adı ve teknik bilgiler tamamen opsiyoneldir. Gizlenirse 'gizli' yazısı basılmaz.
+- Okuyucu QR bölümü kaldırılabilir ve daha temiz görünecek şekilde düzenlenmiştir.
+- Açıklama metni veri karesinin altına eklenebilir.

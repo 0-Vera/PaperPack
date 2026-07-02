@@ -20,7 +20,7 @@
   const els = {
     encodeMode: $('encodeMode'), density: $('density'), singleInputs: $('singleInputs'), nineInputs: $('nineInputs'),
     fileInput: $('fileInput'), multiFileInput: $('multiFileInput'), textInput: $('textInput'), manualName: $('manualName'),
-    password: $('password'), hideNames: $('hideNames'), includeReaderQr: $('includeReaderQr'), readerLink: $('readerLink'),
+    password: $('password'), pagePreset: $('pagePreset'), showTechInfo: $('showTechInfo'), showFileMeta: $('showFileMeta'), hideNames: $('hideNames'), includeDescription: $('includeDescription'), outputDescription: $('outputDescription'), includeReaderQr: $('includeReaderQr'), readerLink: $('readerLink'),
     encodeBtn: $('encodeBtn'), printBtn: $('printBtn'), downloadPngBtn: $('downloadPngBtn'), downloadSvgBtn: $('downloadSvgBtn'),
     encodeStatus: $('encodeStatus'), capacityInfo: $('capacityInfo'), paper: $('paper'),
     decodeMode: $('decodeMode'), decodeArea: $('decodeArea'), decodeImage: $('decodeImage'), decodeBtn: $('decodeBtn'),
@@ -40,6 +40,8 @@
     els.encodeMode.addEventListener('change', () => { toggleMode(); updateCapacityInfo(); });
     els.density.addEventListener('change', updateCapacityInfo);
     els.includeReaderQr.addEventListener('change', updateCapacityInfo);
+    els.pagePreset.addEventListener('change', applyPagePreset);
+    applyPagePreset(false);
     els.encodeBtn.addEventListener('click', encodeCurrent);
     els.printBtn.addEventListener('click', () => window.print());
     els.downloadPngBtn.addEventListener('click', downloadPaperPng);
@@ -59,6 +61,52 @@
     const nine = els.encodeMode.value === 'nine';
     els.singleInputs.classList.toggle('hidden', nine);
     els.nineInputs.classList.toggle('hidden', !nine);
+  }
+
+
+  function getPrintOptions(){
+    const desc = (els.outputDescription.value || '').trim();
+    return {
+      showTech: Boolean(els.showTechInfo.checked),
+      showMeta: Boolean(els.showFileMeta.checked),
+      hideNames: Boolean(els.hideNames.checked),
+      showDesc: Boolean(els.includeDescription.checked && desc),
+      desc,
+      qr: Boolean(els.includeReaderQr.checked),
+      readerUrl: (els.readerLink.value || DEFAULT_READER_URL).trim()
+    };
+  }
+
+  function applyPagePreset(overwriteText = true){
+    const v = els.pagePreset.value;
+    if(v === 'minimal'){
+      els.showTechInfo.checked = false;
+      els.showFileMeta.checked = false;
+      els.hideNames.checked = true;
+      els.includeDescription.checked = false;
+      els.includeReaderQr.checked = false;
+    }else if(v === 'note'){
+      els.showTechInfo.checked = false;
+      els.showFileMeta.checked = false;
+      els.hideNames.checked = true;
+      els.includeDescription.checked = true;
+      els.includeReaderQr.checked = false;
+      if(overwriteText && !els.outputDescription.value.trim()) els.outputDescription.value = 'Bu çıktı PaperPack veri kağıdıdır. PaperPack okuyucu ile okutulup dosya geri açılır.';
+    }else if(v === 'standard'){
+      els.showTechInfo.checked = true;
+      els.showFileMeta.checked = false;
+      els.hideNames.checked = false;
+      els.includeDescription.checked = false;
+      els.includeReaderQr.checked = true;
+    }else if(v === 'full'){
+      els.showTechInfo.checked = true;
+      els.showFileMeta.checked = true;
+      els.hideNames.checked = false;
+      els.includeDescription.checked = true;
+      els.includeReaderQr.checked = true;
+      if(overwriteText && !els.outputDescription.value.trim()) els.outputDescription.value = 'Okuyucu linkini aç, bu kağıttaki veri karesini okut, şifre varsa gir ve dosyayı yeni sekmede aç.';
+    }
+    updateCapacityInfo();
   }
 
   function updateCapacityInfo(){
@@ -228,40 +276,64 @@
   }
 
   function renderPaper(cards, mode, encrypted){
+    const opts = getPrintOptions();
     els.paper.innerHTML='';
-    const title=document.createElement('div'); title.className='paper-title';
-    const qrEnabled = els.includeReaderQr.checked;
-    title.innerHTML = `<div><strong>PaperPack v1</strong><span>${mode==='nine'?'9 dosya modu':'tek dosya modu'} • ${encrypted?'şifreli':'şifresiz'} • ${new Date().toLocaleString('tr-TR')}</span><span class="reader-url">${qrEnabled ? escapeHtml(els.readerLink.value || DEFAULT_READER_URL) : ''}</span></div>`;
-    if(qrEnabled){ const img=document.createElement('img'); img.className='reader-qr'; img.alt='PaperPack okuyucu linki'; img.src=DEFAULT_READER_QR; title.appendChild(img); }
-    els.paper.appendChild(title);
+    els.paper.className = 'paper a4';
+    const minimal = !opts.showTech && !opts.qr && !opts.showMeta && !opts.showDesc;
+    els.paper.classList.toggle('layout-minimal', minimal);
+    els.paper.classList.toggle('layout-has-title', opts.showTech || opts.qr);
+
+    if(opts.showTech || opts.qr){
+      const title=document.createElement('div'); title.className='paper-title';
+      if(opts.showTech){
+        const main=document.createElement('div'); main.className='paper-title-main';
+        main.innerHTML = `<strong>PaperPack</strong><span>${mode==='nine'?'9 dosya modu':'tek dosya modu'} • ${encrypted?'şifreli':'şifresiz'} • ${new Date().toLocaleString('tr-TR')}</span>`;
+        title.appendChild(main);
+      }
+      if(opts.qr){
+        const box=document.createElement('div'); box.className='reader-box';
+        const img=document.createElement('img'); img.className='reader-qr'; img.alt='PaperPack okuyucu linki'; img.src=DEFAULT_READER_QR;
+        const tx=document.createElement('div'); tx.className='reader-text'; tx.innerHTML = `<b>Okuyucu</b><span>${escapeHtml(opts.readerUrl)}</span>`;
+        box.appendChild(tx); box.appendChild(img); title.appendChild(box);
+      }
+      els.paper.appendChild(title);
+    }
+
     if(mode==='nine'){
       const grid=document.createElement('div'); grid.className='nine-grid';
       for(let i=0;i<9;i++){
         const item=cards[i], card=document.createElement('div'); card.className='code-card';
-        if(item){ card.appendChild(metaLine(item.file.name,i+1,item.packet.length,item.gridSize)); item.canvas.className='code-canvas'; card.appendChild(item.canvas); }
-        else card.innerHTML='<div class="code-meta"><span>Boş</span><span></span></div>';
+        if(item){ const m=metaLine(item.file.name,i+1,item.packet.length,item.gridSize,opts); if(m) card.appendChild(m); item.canvas.className='code-canvas'; card.appendChild(item.canvas); }
         grid.appendChild(card);
       }
       els.paper.appendChild(grid);
     }else{
       const card=document.createElement('div'); card.className='code-card single-card';
-      card.appendChild(metaLine(cards[0].file.name,1,cards[0].packet.length,cards[0].gridSize)); cards[0].canvas.className='code-canvas'; card.appendChild(cards[0].canvas); els.paper.appendChild(card);
+      const m=metaLine(cards[0].file.name,1,cards[0].packet.length,cards[0].gridSize,opts); if(m) card.appendChild(m);
+      cards[0].canvas.className='code-canvas'; card.appendChild(cards[0].canvas); els.paper.appendChild(card);
+    }
+    if(opts.showDesc){
+      const d=document.createElement('div'); d.className='paper-description'; d.textContent=opts.desc; els.paper.appendChild(d);
     }
   }
 
-  function metaLine(name,index,bytes,grid){
+  function metaLine(name,index,bytes,grid,opts){
+    if(!opts.showMeta) return null;
     const div=document.createElement('div'); div.className='code-meta';
-    div.innerHTML=`<span>${index}. ${els.hideNames.checked?'gizli':escapeHtml(name)}</span><span>${grid}×${grid} • ${(bytes/1024).toFixed(2)} KB</span>`;
+    const left = opts.hideNames ? `${index}.` : `${index}. ${escapeHtml(name)}`;
+    const right = `${grid}×${grid} • ${(bytes/1024).toFixed(2)} KB`;
+    div.innerHTML=`<span>${left}</span><span>${right}</span>`;
     return div;
   }
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   async function downloadPaperPng(){
+    const opts = getPrintOptions();
     const scale=2, w=els.paper.offsetWidth, h=els.paper.offsetHeight;
     const out=document.createElement('canvas'); out.width=w*scale; out.height=h*scale;
     const ctx=out.getContext('2d',{alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,out.width,out.height); ctx.scale(scale,scale);
-    ctx.fillStyle='#111'; ctx.font='18px Arial'; ctx.fillText('PaperPack v1',30,32);
-    if(els.includeReaderQr.checked){ await drawImageData(ctx, DEFAULT_READER_QR, w-120, 20, 84, 84); ctx.font='9px Arial'; ctx.fillText('Okuyucu', w-116, 112); }
+    if(opts.showTech){ ctx.fillStyle='#111'; ctx.font='18px Arial'; ctx.fillText('PaperPack',30,32); ctx.font='10px Arial'; ctx.fillText(`${currentMode==='nine'?'9 dosya modu':'tek dosya modu'}`,30,48); }
+    if(opts.qr){ await drawImageData(ctx, DEFAULT_READER_QR, w-104, 20, 74, 74); ctx.fillStyle='#111'; ctx.font='10px Arial'; ctx.fillText('Okuyucu', w-104, 106); }
     const parent=els.paper.getBoundingClientRect();
     for(const card of Array.from(els.paper.querySelectorAll('.code-card'))){
       const r=card.getBoundingClientRect(); const x=r.left-parent.left, y=r.top-parent.top;
@@ -269,24 +341,37 @@
       const meta=card.querySelector('.code-meta'); if(meta){ ctx.fillStyle='#111'; ctx.font='9px Arial'; ctx.fillText(meta.innerText.slice(0,100),x+6,y+13); }
       const can=card.querySelector('canvas'); if(can){ const cr=can.getBoundingClientRect(); ctx.drawImage(can, cr.left-parent.left, cr.top-parent.top, cr.width, cr.height); }
     }
+    const desc=els.paper.querySelector('.paper-description');
+    if(desc){ const r=desc.getBoundingClientRect(), parent=els.paper.getBoundingClientRect(); ctx.fillStyle='#111'; ctx.font='11px Arial'; wrapCanvasText(ctx, desc.textContent, r.left-parent.left+6, r.top-parent.top+16, r.width-12, 14); }
     out.toBlob(blob=>{ if(lastPaperBlobUrl) URL.revokeObjectURL(lastPaperBlobUrl); lastPaperBlobUrl=URL.createObjectURL(blob); downloadUrl(lastPaperBlobUrl,'paperpack-a4.png'); },'image/png');
+  }
+
+  function wrapCanvasText(ctx,text,x,y,maxWidth,lineHeight){
+    const words=String(text).split(/\s+/); let line='';
+    for(const word of words){ const test=line?line+' '+word:word; if(ctx.measureText(test).width>maxWidth && line){ ctx.fillText(line,x,y); line=word; y+=lineHeight; } else line=test; }
+    if(line) ctx.fillText(line,x,y);
   }
   function drawImageData(ctx,src,x,y,w,h){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ctx.drawImage(im,x,y,w,h);res();}; im.src=src; }); }
   function downloadUrl(url,name){ const a=document.createElement('a'); a.href=url; a.download=name; a.click(); }
 
   function downloadPaperSvg(){
     if(!currentCards.length) return;
+    const opts = getPrintOptions();
     const W=210, H=297;
-    let s=`<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/><text x="8" y="10" font-family="Arial" font-size="5">PaperPack v1</text>`;
-    if(els.includeReaderQr.checked) s += `<image href="${DEFAULT_READER_QR}" x="178" y="5" width="22" height="22"/>`;
-    if(currentMode==='single') s += svgCard(currentCards[0],20,32,170,170,1);
-    else { let i=0; for(let r=0;r<3;r++) for(let c=0;c<3;c++){ if(currentCards[i]) s+=svgCard(currentCards[i],8+c*66,26+r*88,60,60,i+1); i++; } }
+    let s=`<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/>`;
+    if(opts.showTech) s += `<text x="8" y="10" font-family="Arial" font-size="5" font-weight="700">PaperPack</text><text x="8" y="15" font-family="Arial" font-size="3">${currentMode==='nine'?'9 dosya modu':'tek dosya modu'}</text>`;
+    if(opts.qr) s += `<image href="${DEFAULT_READER_QR}" x="178" y="5" width="22" height="22"/><text x="178" y="30" font-family="Arial" font-size="3">Okuyucu</text>`;
+    const top = (opts.showTech || opts.qr) ? 32 : 14;
+    if(currentMode==='single') s += svgCard(currentCards[0],20,top,170,170,1,opts);
+    else { let i=0; for(let r=0;r<3;r++) for(let c=0;c<3;c++){ if(currentCards[i]) s+=svgCard(currentCards[i],8+c*66,top-6+r*88,60,60,i+1,opts); i++; } }
+    if(opts.showDesc){ s += `<text x="12" y="286" font-family="Arial" font-size="3.2">${escapeXml(opts.desc).slice(0,260)}</text>`; }
     s += '</svg>';
     const url=URL.createObjectURL(new Blob([s],{type:'image/svg+xml'})); downloadUrl(url,'paperpack-a4.svg'); setTimeout(()=>URL.revokeObjectURL(url),30000);
   }
-  function svgCard(card,x,y,w,h,index){
+  function svgCard(card,x,y,w,h,index,opts){
     const n=card.gridSize, quiet=8, border=4, total=n+(quiet+border)*2, cell=w/total, bits=bytesToBits(card.packet,n*n);
-    let s=`<g><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" stroke="#111" stroke-width="0.2"/><text x="${x}" y="${y-1.5}" font-family="Arial" font-size="2.4">${index}. ${escapeXml(card.file.name)} ${n}x${n}</text>`;
+    let s=`<g><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" stroke="#111" stroke-width="0.2"/>`;
+    if(opts.showMeta){ const label = opts.hideNames ? `${index}. ${n}x${n}` : `${index}. ${escapeXml(card.file.name)} ${n}x${n}`; s += `<text x="${x}" y="${y-1.5}" font-family="Arial" font-size="2.4">${label}</text>`; }
     s += `<rect x="${x+quiet*cell}" y="${y+quiet*cell}" width="${(n+border*2)*cell}" height="${border*cell}" fill="#000"/>`;
     s += `<rect x="${x+quiet*cell}" y="${y+(quiet+border+n)*cell}" width="${(n+border*2)*cell}" height="${border*cell}" fill="#000"/>`;
     s += `<rect x="${x+quiet*cell}" y="${y+quiet*cell}" width="${border*cell}" height="${(n+border*2)*cell}" fill="#000"/>`;
@@ -295,8 +380,6 @@
     for(let i=0;i<bits.length;i++) if(bits[i]){ const xx=i%n, yy=Math.floor(i/n); s += `<rect x="${(ox+xx*cell).toFixed(3)}" y="${(oy+yy*cell).toFixed(3)}" width="${cell.toFixed(3)}" height="${cell.toFixed(3)}" fill="#000"/>`; }
     return s+'</g>';
   }
-  function escapeXml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-
   async function preparePreview(){
     const file=els.decodeImage.files && els.decodeImage.files[0];
     preview.selection=null;
