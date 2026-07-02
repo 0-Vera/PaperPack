@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PaperPack</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="style.css?v=8" />
+  <!-- PWA manifest geçici olarak kapalı: eski service worker cache sorunlarını önlemek için. -->
   <meta name="theme-color" content="#111111" />
 </head>
 <body>
@@ -14,7 +14,7 @@
       <h1>PaperPack</h1>
       <p>Dosyayı A4 veri desenine çevir, çıktıyı okutunca dosyayı geri aç.</p>
     </div>
-    <span class="badge">statik / bağımlılıksız / PWA hazır</span>
+    <span class="badge">statik / bağımlılıksız / v8</span>
   </header>
 
   <main>
@@ -31,8 +31,9 @@
         <label class="field">
           <span>Yoğunluk</span>
           <select id="density">
+            <option value="auto" selected>Otomatik / önerilen</option>
             <option value="safe">Güvenli</option>
-            <option value="standard" selected>Standart</option>
+            <option value="standard">Standart</option>
             <option value="dense">Yoğun</option>
             <option value="max">Maksimum</option>
           </select>
@@ -99,7 +100,7 @@
 
     <section class="panel">
       <h2>2) A4'ten geri oku</h2>
-      <p class="hint">Önce otomatik oku. Başarısız olursa önizlemede sadece kalın siyah çerçeveli veri karesini seç: siyah çerçeve dahil, dıştaki ince kart çizgisi ve başlık hariç.</p>
+      <p class="hint">Önce otomatik oku. Uygulamanın kendi ürettiği PNG/PDF çıktısında normalde seçim gerekmez. Başarısız olursa önizlemede sadece kalın siyah çerçeveli veri karesini seç: siyah çerçeve dahil, dıştaki ince kart çizgisi ve başlık hariç.</p>
       <div class="grid2">
         <label class="field">
           <span>Okuma modu</span>
@@ -161,10 +162,20 @@
     </div>
   </template>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=8"></script>
   <script>
+    // v8: Service worker geçici olarak kapalı. Eski cache, app.js güncellemelerini bozabiliyordu.
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+      window.addEventListener('load', async () => {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const reg of regs) await reg.unregister();
+          if (window.caches) {
+            const keys = await caches.keys();
+            for (const key of keys) if (key.startsWith('paperpack-')) await caches.delete(key);
+          }
+        } catch (_) {}
+      });
     }
   </script>
 </body>

@@ -10,7 +10,11 @@
     single: { safe: 180, standard: 256, dense: 320, max: 384 },
     nine: { safe: 72, standard: 96, dense: 112, max: 128 }
   };
-  const TRY_GRIDS = [256,180,96,128,72,112,320,384];
+  const GRID_ORDER = {
+    single: ['safe','standard','dense','max'],
+    nine: ['safe','standard','dense','max']
+  };
+  const TRY_GRIDS = [180,256,128,96,72,112,320,384];
 
   const $ = id => document.getElementById(id);
   const els = {
@@ -59,6 +63,14 @@
 
   function updateCapacityInfo(){
     const mode = els.encodeMode.value;
+    if(els.density.value === 'auto'){
+      const opts = GRID_ORDER[mode].map(k => DENSITIES[mode][k]);
+      const min = opts[0], max = opts[opts.length-1];
+      els.capacityInfo.textContent = mode === 'nine'
+        ? `Otomatik mod: Her kutu için gereken en küçük okunabilir yoğunluk seçilir (${min}×${min} - ${max}×${max}). Küçük dosyada daha büyük hücre = daha kolay okuma.`
+        : `Otomatik mod: Dosya için gereken en küçük okunabilir yoğunluk seçilir (${min}×${min} - ${max}×${max}). Küçük dosyada daha büyük hücre = daha kolay okuma.`;
+      return;
+    }
     const n = DENSITIES[mode][els.density.value];
     const cap = Math.floor(n*n/8);
     const reserve = mode === 'nine' ? 180 : 220;
@@ -74,16 +86,17 @@
       setEncodeStatus('Hazırlanıyor...');
       await tick();
       const mode = els.encodeMode.value;
-      const gridSize = DENSITIES[mode][els.density.value];
+      const selectedDensity = els.density.value;
       const password = els.password.value || '';
       const files = mode === 'nine' ? await getNineFiles() : [await getSingleFile()];
       if(!files.length) throw new Error('Dosya veya metin girilmedi.');
       const cards = [];
       for(const file of files.slice(0, mode === 'nine' ? 9 : 1)){
         const packet = await buildPacket(file, password);
-        const capacity = Math.floor(gridSize*gridSize/8);
-        if(packet.length > capacity){
-          throw new Error(`${file.name} çok büyük. Paket ${(packet.length/1024).toFixed(1)} KB, seçili alan kapasitesi ${(capacity/1024).toFixed(1)} KB.`);
+        const gridSize = chooseGridForPacket(mode, selectedDensity, packet.length);
+        if(!gridSize){
+          const max = DENSITIES[mode].max;
+          throw new Error(`${file.name} çok büyük. Paket ${(packet.length/1024).toFixed(1)} KB, maksimum alan kapasitesi ${(Math.floor(max*max/8)/1024).toFixed(1)} KB.`);
         }
         const canvas = drawCodeCanvas(packet, gridSize, mode === 'nine' ? 4 : 5);
         cards.push({file, packet, canvas, gridSize});
@@ -92,8 +105,21 @@
       els.printBtn.disabled = false; els.downloadPngBtn.disabled = false; els.downloadSvgBtn.disabled = false;
       currentCards = cards; currentMode = mode;
       const summary = cards.map((c,i)=>`${i+1}. ${c.file.name}: ${(c.packet.length/1024).toFixed(2)} KB / ${(Math.floor(c.gridSize*c.gridSize/8)/1024).toFixed(2)} KB`).join('\n');
-      setEncodeStatus(`A4 hazır.\n${summary}\nOkuma notu: Otomatik mod önce kalın siyah çerçeveyi bulmaya çalışır. Manuel seçmen gerekirse sadece kalın siyah çerçeveli veri karesini seç; dıştaki ince sayfa/kart çizgisini ve başlığı alma.`);
+      setEncodeStatus(`A4 hazır.\n${summary}\nOtomatik yoğunluk açıksa küçük dosyalarda daha düşük grid seçilir; okuma kolaylaşır.\nOkuma notu: Otomatik mod önce kalın siyah çerçeveyi bulmaya çalışır. Manuel seçmen gerekirse sadece kalın siyah çerçeveli veri karesini seç; dıştaki ince sayfa/kart çizgisini ve başlığı alma.`);
     }catch(err){ console.error(err); setEncodeStatus('Hata: ' + err.message); }
+  }
+
+
+  function chooseGridForPacket(mode, selectedDensity, packetLength){
+    if(selectedDensity !== 'auto'){
+      const n = DENSITIES[mode][selectedDensity];
+      return packetLength <= Math.floor(n*n/8) ? n : null;
+    }
+    for(const key of GRID_ORDER[mode]){
+      const n = DENSITIES[mode][key];
+      if(packetLength <= Math.floor(n*n/8)) return n;
+    }
+    return null;
   }
 
   async function getSingleFile(){
@@ -354,12 +380,17 @@
 
   function decodeAutoFromCanvas(canvas){
     const packets=[], candidates=buildCandidates(canvas); let attempts=0;
-    for(const bbox of candidates){
-      for(const n of TRY_GRIDS){
-        for(const mode of ['border','direct']){
-          attempts++;
-          try{ const p=parsePacket(bitsToBytes(sampleGrid(canvas,bbox,n,mode))); if(p) return {packets:[p], attempts}; }
-          catch(e){ /* try next */ }
+    for(const bbox0 of candidates){
+      const bboxList = expandBboxVariants(canvas, bbox0);
+      for(const bbox of bboxList){
+        for(const n of TRY_GRIDS){
+          for(const mode of ['border','direct']){
+            for(const phase of [0, -0.18, 0.18]){
+              attempts++;
+              try{ const p=parsePacket(bitsToBytes(sampleGrid(canvas,bbox,n,mode,phase))); if(p) return {packets:[p], attempts}; }
+              catch(e){ /* try next */ }
+            }
+          }
         }
       }
     }
@@ -411,7 +442,23 @@
     return best;
   }
 
-  function sampleGrid(canvas,bbox,n,mode){
+
+  function expandBboxVariants(canvas,bbox){
+    const out=[];
+    const add=(b)=>{
+      const x0=clamp(Math.round(b.x0),0,canvas.width-2), y0=clamp(Math.round(b.y0),0,canvas.height-2);
+      const x1=clamp(Math.round(b.x1),x0+1,canvas.width-1), y1=clamp(Math.round(b.y1),y0+1,canvas.height-1);
+      const key=[x0,y0,x1,y1].join(',');
+      if(!out.some(v=>v.key===key)) out.push({x0,y0,x1,y1,w:x1-x0+1,h:y1-y0+1,key});
+    };
+    add(bbox);
+    const pad=Math.round(Math.min(bbox.w,bbox.h)*0.01);
+    add({x0:bbox.x0-pad,y0:bbox.y0-pad,x1:bbox.x1+pad,y1:bbox.y1+pad});
+    add({x0:bbox.x0+pad,y0:bbox.y0+pad,x1:bbox.x1-pad,y1:bbox.y1-pad});
+    return out;
+  }
+
+  function sampleGrid(canvas,bbox,n,mode,phase=0){
     const ctx=canvas.getContext('2d',{willReadFrequently:true});
     const img=ctx.getImageData(0,0,canvas.width,canvas.height).data;
     let cellW,cellH,ox,oy;
@@ -422,16 +469,31 @@
     }
     const values=new Uint8Array(n*n);
     for(let y=0;y<n;y++) for(let x=0;x<n;x++){
-      const cx=clamp(Math.round(ox+(x+0.5)*cellW),0,canvas.width-1);
-      const cy=clamp(Math.round(oy+(y+0.5)*cellH),0,canvas.height-1);
-      const i=(cy*canvas.width+cx)*4;
-      values[y*n+x]=Math.round((img[i]+img[i+1]+img[i+2])/3);
+      const cx=ox+(x+0.5+phase)*cellW;
+      const cy=oy+(y+0.5+phase)*cellH;
+      values[y*n+x]=sampleAverageGray(img,canvas.width,canvas.height,cx,cy,cellW,cellH);
     }
     const threshold=otsuThreshold(values);
     const bits=new Uint8Array(n*n);
     for(let i=0;i<values.length;i++) bits[i]=values[i]<threshold?1:0;
     return bits;
   }
+
+  function sampleAverageGray(img,w,h,cx,cy,cellW,cellH){
+    const rX=Math.max(0.5, Math.min(2.5, cellW*0.22));
+    const rY=Math.max(0.5, Math.min(2.5, cellH*0.22));
+    const xs=[cx, cx-rX, cx+rX, cx, cx];
+    const ys=[cy, cy, cy, cy-rY, cy+rY];
+    let sum=0,count=0;
+    for(let k=0;k<xs.length;k++){
+      const x=clamp(Math.round(xs[k]),0,w-1), y=clamp(Math.round(ys[k]),0,h-1);
+      const i=(y*w+x)*4;
+      sum += (img[i]+img[i+1]+img[i+2])/3;
+      count++;
+    }
+    return Math.round(sum/count);
+  }
+
   function otsuThreshold(values){
     const hist=new Uint32Array(256);
     for(let i=0;i<values.length;i++) hist[values[i]]++;
