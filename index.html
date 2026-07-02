@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PaperPack</title>
-  <link rel="stylesheet" href="style.css?v=13" />
+  <link rel="stylesheet" href="style.css?v=14" />
   <meta name="theme-color" content="#111111" />
 </head>
 <body>
@@ -13,7 +13,7 @@
       <h1>PaperPack</h1>
       <p>Dosyayı A4 veri desenine çevir, çıktıyı okutunca dosyayı geri aç.</p>
     </div>
-    <span class="badge">statik / bağımlılıksız / v13</span>
+    <span class="badge">statik / bağımlılıksız / v14</span>
   </header>
 
   <main>
@@ -105,8 +105,8 @@
 
     <section class="panel">
       <h2>2) A4'ten geri oku</h2>
-      <p class="hint desktop-hint">Otomatik okuma önce içteki veri karesini bulmayı dener. Başarısız olursa manuel seçimde sadece kalın siyah çerçeveli veri karesini seç; siyah çerçeve dahil, dış kart boşluğu hariç.</p>
-      <p class="hint mobile-note">Mobilde fotoğraf yükle/çek. Sistem otomatik okur; iyi sonuç için kareyi net, gölgesiz ve mümkün olduğunca düz çek.</p>
+      <p class="hint desktop-hint">Fotoğraf yükle/çek. Sistem önce veri karesini otomatik bulur, gerekirse yamuk fotoğrafı düzeltip okur. Başarısız olursa manuel seçimde sadece kalın siyah çerçeveli veri karesini seç; siyah çerçeve dahil, dış kart boşluğu hariç.</p>
+      <p class="hint mobile-note">Mobilde canlı kamera yok. Fotoğraf çek/yükle; sistem otomatik düzeltme yapar. Netlik hâlâ önemli.</p>
       <div class="grid2">
         <label class="field">
           <span>Okuma modu</span>
@@ -121,21 +121,9 @@
           <input id="decodeImage" type="file" accept="image/*" capture="environment" />
         </label>
       </div>
-      <div class="camera-scan-panel">
-        <div class="camera-head">
-          <strong>Telefon modu / canlı okutma</strong>
-          <span>Google Lens mantığına yakın: kamerayı kareye tut, sistem otomatik denesin.</span>
-        </div>
-        <div class="camera-stage hidden" id="cameraStage">
-          <video id="scanVideo" playsinline muted></video>
-        </div>
-        <div class="actions camera-actions">
-          <button id="startCameraBtn" type="button" class="secondary">Kamerayı aç</button>
-          <button id="captureScanBtn" type="button" disabled>Şimdi tara</button>
-          <button id="autoScanBtn" type="button" disabled>Otomatik tara</button>
-          <button id="stopCameraBtn" type="button" class="secondary" disabled>Kamerayı kapat</button>
-        </div>
-        <p id="scanHint" class="hint">Kareyi ekranda büyük ve net tut. Hafif yamuk fotoğraf için perspektif düzeltme otomatik denenir.</p>
+      <div class="photo-scan-note">
+        <strong>Telefon okuma modu</strong>
+        <span>Canlı kamera kaldırıldı. Fotoğraf çek/yükle; uygulama gölge/ışık ve perspektif düzeltmeyi otomatik dener.</span>
       </div>
 
       <div class="grid2 decode-advanced">
@@ -148,6 +136,7 @@
           </select>
         </label>
         <div class="field"><span>Manuel alan seçimi</span><button id="resetSelectionBtn" type="button" class="secondary">Seçimi sıfırla</button></div>
+        <label class="field checkboxline compact-check"><input id="photoFix" type="checkbox" checked><span>Yamuk/gölgeli fotoğrafı düzeltmeyi dene</span></label>
       </div>
       <div class="preview-box decode-advanced">
         <canvas id="imagePreview" class="image-preview"></canvas>
@@ -198,6 +187,6 @@
     </div>
   </template>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

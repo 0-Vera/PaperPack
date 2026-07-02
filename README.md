@@ -1,18 +1,28 @@
-# PaperPack v13
+# PaperPack v14
 
-Statik, bağımlılıksız web uygulaması. Dosyayı A4 üzerindeki veri desenine çevirir; fotoğraf/kamera ile geri okur.
+Statik, bağımlılıksız PaperPack web uygulaması.
 
-## v13 düzeltmeleri
+## v14 değişiklikleri
 
-- v12 çıktılarının okunamamasına yol açan grid okuma uyumsuzluğu giderildi.
-- Okuyucu artık veri alanı, siyah çerçeve alanı, tam kod alanı ve elde fazla seçilmiş alan gibi birkaç geometriyi dener.
-- Siyah okuma çerçevesi opsiyonel hale geldi. Varsayılan açık kalır; kapatırsan sadece köşe hedefleri basılır.
-- Adaptif eşik ve kare merkez örnekleme iyileştirildi.
+- Canlı kamera modu kaldırıldı. Telefon kullanımında fotoğraf çek/yükle akışı hedeflenir.
+- Okuma motoru hızlandırıldı; eski sürümdeki ağır çoklu tarama azaltıldı.
+- Fotoğraf okuma tarafında önce seçili/otomatik alan denenir, başarısız olursa daha sınırlı fallback yapılır.
+- Yamuk/gölgeli fotoğraf düzeltme seçeneği eklendi.
+- Görsel yüklenirken maksimum işleme boyutu düşürüldü, mobil kasma azaltıldı.
+- Hücre okuma 5 noktalı hızlı örneklemeye geçirildi.
 
-## Not
+## Siyah çerçeve notu
 
-Telefon okuması için siyah çerçeve genelde yardımcıdır; tamamen kaldırmak estetik olarak daha sade olabilir ama otomatik algılamayı zorlaştırabilir.
+Siyah okuma çerçevesi varsayılan olarak açık kalmalıdır. Çerçeve, fotoğrafta veri karesinin otomatik bulunmasını ve perspektif düzeltme denemesini kolaylaştırır. Görsel olarak istenmezse kapatılabilir; ancak telefonla okuma güvenilirliği düşebilir.
 
-## Yayın
+## Kullanım
 
-GitHub Pages ile doğrudan yayınlanır; npm/backend/CDN gerekmez.
+1. Dosya veya manuel HTML ekle.
+2. A4 oluştur.
+3. PNG/SVG indir veya yazdır.
+4. Telefonda siteyi aç, fotoğraf çek/yükle.
+5. Gerekirse şifreyi gir, HTML yeni sekmede açılsın.
+
+## Yayınlama
+
+GitHub Pages ile `index.html`, `app.js`, `style.css` dosyalarını doğrudan yayınlayabilirsin. npm, build, backend veya CDN gerekmez.

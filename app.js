@@ -9,7 +9,9 @@
     single: { safe: 180, standard: 220, dense: 256, max: 320 },
     multi:  { safe: 72,  standard: 88,  dense: 104, max: 120 }
   };
-  const TRY_GRIDS = [320, 256, 220, 180, 120, 104, 88, 72];
+  const TRY_GRIDS_SINGLE = [180, 220, 256, 320, 120];
+  const TRY_GRIDS_MULTI = [72, 88, 104, 120];
+  const TRY_GRIDS = [180, 220, 256, 320, 120, 104, 88, 72];
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -20,8 +22,7 @@
     downloadPngBtn: $('downloadPngBtn'), downloadSvgBtn: $('downloadSvgBtn'), encodeStatus: $('encodeStatus'), paper: $('paper'),
     decodeMode: $('decodeMode'), decodeArea: $('decodeArea'), decodeImage: $('decodeImage'), decodeBtn: $('decodeBtn'), clearDecodeBtn: $('clearDecodeBtn'),
     decodeStatus: $('decodeStatus'), decodeResults: $('decodeResults'), resultTemplate: $('resultTemplate'), imagePreview: $('imagePreview'),
-    selectionInfo: $('selectionInfo'), resetSelectionBtn: $('resetSelectionBtn'),
-    cameraStage: $('cameraStage'), scanVideo: $('scanVideo'), startCameraBtn: $('startCameraBtn'), captureScanBtn: $('captureScanBtn'), autoScanBtn: $('autoScanBtn'), stopCameraBtn: $('stopCameraBtn'), scanHint: $('scanHint')
+    selectionInfo: $('selectionInfo'), resetSelectionBtn: $('resetSelectionBtn'), photoFix: $('photoFix')
   };
 
   let items = [];
@@ -29,9 +30,6 @@
   let previewImageCanvas = null;
   let selection = null;
   let dragStart = null;
-  let scanStream = null;
-  let autoScanTimer = null;
-  let autoScanBusy = false;
 
   bind();
   renderItems();
@@ -54,10 +52,6 @@
     els.imagePreview.addEventListener('pointerdown', startSelection);
     els.imagePreview.addEventListener('pointermove', moveSelection);
     els.imagePreview.addEventListener('pointerup', endSelection);
-    els.startCameraBtn.addEventListener('click', startCameraScan);
-    els.captureScanBtn.addEventListener('click', captureAndDecodeFromCamera);
-    els.autoScanBtn.addEventListener('click', toggleAutoScan);
-    els.stopCameraBtn.addEventListener('click', stopCameraScan);
   }
 
   function applyPreset(){
@@ -380,98 +374,71 @@
   }
 
   function decodePacketsFromCanvas(full, includeSelection){
-    let candidates=[];
-    if(els.decodeArea.value !== 'selected') candidates.push(full);
-    if(includeSelection && selection && els.decodeArea.value !== 'full') candidates.push(cropCanvas(full,selection.x,selection.y,selection.w,selection.h));
+    const mode=els.decodeMode.value;
     const packets=[]; let tries=0;
-    for(const c of candidates){
-      const mode=els.decodeMode.value;
-      const list = mode==='multi' ? splitMultiCandidates(c) : mode==='single' ? [c] : [c,...splitMultiCandidates(c)];
-      for(const part of list){ tries++; const found=decodeAllFromCanvas(part); for(const p of found){ if(!packets.some(x=>x.header.name===p.header.name && x.payload.length===p.payload.length)) packets.push(p); } }
+    const base=[];
+    // Selection first: if auto/manual selection exists, it is normally the highest-quality crop.
+    if(includeSelection && selection && els.decodeArea.value !== 'full') base.push(cropCanvas(full,selection.x,selection.y,selection.w,selection.h));
+    if(els.decodeArea.value !== 'selected') base.push(full);
+
+    for(const c of base){
+      const list = mode==='multi' ? splitMultiCandidates(c) : [c];
+      for(const part of list){
+        tries++;
+        const found=decodeAllFromCanvas(part, mode);
+        for(const p of found){ if(!packets.some(x=>x.header.name===p.header.name && x.payload.length===p.payload.length)) packets.push(p); }
+        if(packets.length && mode!=='multi') break;
+      }
+      if(packets.length && mode!=='multi') break;
+    }
+
+    // Auto mode fallback: only if the direct pass fails, try 2x2/3x3 splits. This avoids the old heavy 30-60s scan.
+    if(!packets.length && mode==='auto'){
+      for(const c of base){
+        for(const part of splitMultiCandidates(c)){
+          tries++;
+          const found=decodeAllFromCanvas(part, 'multi');
+          for(const p of found){ if(!packets.some(x=>x.header.name===p.header.name && x.payload.length===p.payload.length)) packets.push(p); }
+        }
+        if(packets.length) break;
+      }
     }
     packets._tries = tries;
     return packets;
   }
-  async function startCameraScan(){
-    try{
-      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Bu tarayıcı kamera erişimini desteklemiyor.');
-      scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080}}, audio:false});
-      els.scanVideo.srcObject = scanStream;
-      await els.scanVideo.play();
-      els.cameraStage.classList.remove('hidden');
-      els.captureScanBtn.disabled=false; els.autoScanBtn.disabled=false; els.stopCameraBtn.disabled=false; els.startCameraBtn.disabled=true;
-      els.scanHint.textContent='Kareyi kılavuz çerçevenin içine getir. Netleşince Şimdi tara veya Otomatik tara kullan.';
-    }catch(e){ setDecodeStatus('Kamera açılamadı: '+e.message); }
-  }
-  function stopCameraScan(){
-    if(autoScanTimer){ clearInterval(autoScanTimer); autoScanTimer=null; }
-    if(scanStream){ for(const t of scanStream.getTracks()) t.stop(); scanStream=null; }
-    els.scanVideo.srcObject=null; els.cameraStage.classList.add('hidden');
-    els.captureScanBtn.disabled=true; els.autoScanBtn.disabled=true; els.stopCameraBtn.disabled=true; els.startCameraBtn.disabled=false; els.autoScanBtn.textContent='Otomatik tara';
-  }
-  async function captureAndDecodeFromCamera(){
-    try{
-      const canvas=cameraFrameToCanvas();
-      if(!canvas) throw new Error('Kamera görüntüsü alınamadı.');
-      setDecodeStatus('Kamera görüntüsü okunuyor...');
-      els.decodeResults.innerHTML='';
-      const packets=decodePacketsFromCanvas(canvas,false);
-      if(!packets.length) throw new Error('Veri bulunamadı. Kareyi daha yakın, düz ve net tut. Işık/gölgeyi kontrol et.');
-      setDecodeStatus(`${packets.length} paket bulundu.`); packets.forEach(addResultCard);
-      if(autoScanTimer) toggleAutoScan();
-    }catch(e){ setDecodeStatus('Hata: '+e.message); }
-  }
-  function toggleAutoScan(){
-    if(autoScanTimer){ clearInterval(autoScanTimer); autoScanTimer=null; els.autoScanBtn.textContent='Otomatik tara'; return; }
-    els.autoScanBtn.textContent='Taramayı durdur';
-    autoScanTimer=setInterval(async()=>{
-      if(autoScanBusy) return; autoScanBusy=true;
-      try{
-        const canvas=cameraFrameToCanvas();
-        if(canvas){
-          const packets=decodePacketsFromCanvas(canvas,false);
-          if(packets.length){
-            els.decodeResults.innerHTML=''; setDecodeStatus(`${packets.length} paket bulundu.`); packets.forEach(addResultCard); toggleAutoScan();
-          }else setDecodeStatus('Canlı tarama sürüyor... Kareyi ortala, net ve büyük tut.');
-        }
-      }catch(_){ }
-      finally{ autoScanBusy=false; }
-    }, 1200);
-  }
-  function cameraFrameToCanvas(){
-    const v=els.scanVideo; if(!v || !v.videoWidth) return null;
-    const max=1800; const sc=Math.min(1,max/Math.max(v.videoWidth,v.videoHeight));
-    const c=document.createElement('canvas'); c.width=Math.round(v.videoWidth*sc); c.height=Math.round(v.videoHeight*sc);
-    const ctx=c.getContext('2d',{willReadFrequently:true,alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(v,0,0,c.width,c.height); return c;
-  }
-
   function splitMultiCandidates(canvas){
     const out=[]; const sizes=[2,3];
     for(const s of sizes){ for(let y=0;y<s;y++) for(let x=0;x<s;x++) out.push(cropCanvas(canvas,x*canvas.width/s,y*canvas.height/s,canvas.width/s,canvas.height/s)); }
     return out;
   }
   async function loadImageFromFile(file){ const url=URL.createObjectURL(file); try{ const img=new Image(); img.decoding='async'; await new Promise((res,rej)=>{img.onload=res; img.onerror=()=>rej(new Error('Görsel yüklenemedi.')); img.src=url;}); return img; } finally{ setTimeout(()=>URL.revokeObjectURL(url),1000); } }
-  function imageToCanvas(img){ const max=2400; const sw=img.naturalWidth||img.width, sh=img.naturalHeight||img.height; const sc=Math.min(1,max/Math.max(sw,sh)); const c=document.createElement('canvas'); c.width=Math.round(sw*sc); c.height=Math.round(sh*sc); const ctx=c.getContext('2d',{willReadFrequently:true,alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); return c; }
+  function imageToCanvas(img){ const max=1800; const sw=img.naturalWidth||img.width, sh=img.naturalHeight||img.height; const sc=Math.min(1,max/Math.max(sw,sh)); const c=document.createElement('canvas'); c.width=Math.round(sw*sc); c.height=Math.round(sh*sc); const ctx=c.getContext('2d',{willReadFrequently:true,alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); return c; }
   function cropCanvas(src,x,y,w,h){ const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w)); c.height=Math.max(1,Math.round(h)); const ctx=c.getContext('2d',{willReadFrequently:true,alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(src,x,y,w,h,0,0,c.width,c.height); return c; }
 
-  function decodeAllFromCanvas(canvas){
+  function decodeAllFromCanvas(canvas, mode='auto'){
     const out=[];
     const candidates=[];
-    const quad=findCodeQuad(canvas);
-    if(quad){
-      try{ candidates.push({canvas:warpQuadToCanvas(canvas, quad.points, 1536), warped:true}); }catch(_){ }
+    if(!els.photoFix || els.photoFix.checked){
+      const quad=findCodeQuad(canvas);
+      if(quad){
+        try{ candidates.push({canvas:warpQuadToCanvas(canvas, quad.points, 1280), warped:true}); }catch(_){ }
+      }
     }
     candidates.push({canvas, warped:false});
+    const gridList = mode==='multi' ? TRY_GRIDS_MULTI : mode==='single' ? TRY_GRIDS_SINGLE : TRY_GRIDS;
     for(const cand of candidates){
-      const boxes=findAllCodeBoxes(cand.canvas).slice(0,14);
+      const boxes=findAllCodeBoxes(cand.canvas).slice(0,3);
+      const info=makeImageInfo(cand.canvas);
       for(const bbox of boxes){
-        for(const n of TRY_GRIDS){
-          const variants=sampleGridVariants(cand.canvas,bbox,n);
+        for(const n of gridList){
+          const variants=sampleGridVariants(info,bbox,n);
           for(const bits of variants){
             try{ const p=parsePacket(bitsToBytes(bits)); if(p && !out.some(x=>x.header.name===p.header.name && x.payload.length===p.payload.length)) out.push(p); }
             catch(_){}
           }
+          if(out.length && mode!=='multi') break;
         }
+        if(out.length && mode!=='multi') break;
       }
       if(out.length) break;
     }
@@ -550,7 +517,7 @@
     for(let i=0;i<counts.length;i++){ const ok=counts[i]>=min; if(ok&&start<0)start=i; if((!ok||i===counts.length-1)&&start>=0){ const end=ok&&i===counts.length-1?i:i-1; if(!best||end-start>best[1]-best[0]) best=[start,end]; start=-1; } }
     return best;
   }
-  function sampleGridVariants(canvas,bbox,n){
+  function sampleGridVariants(info,bbox,n){
     // The detected bbox may be: exact data area, black frame area, full generated canvas,
     // or a hand-selected region. Try all valid geometry assumptions before giving up.
     const variants=[];
@@ -562,7 +529,7 @@
     ];
     for(const g of geom){
       if(bbox.w < g.total || bbox.h < g.total) continue;
-      variants.push(sampleGrid(canvas,bbox,n,g.pad,g.total));
+      variants.push(sampleGrid(info,bbox,n,g.pad,g.total));
     }
     // If the region is not square, try a centered square crop too. This helps when the
     // user selects slightly too much whitespace on one side.
@@ -570,27 +537,34 @@
     if(side>80 && Math.abs(bbox.w-bbox.h)>side*0.05){
       const sq={x0:Math.round(bbox.x0+(bbox.w-side)/2), y0:Math.round(bbox.y0+(bbox.h-side)/2), x1:0,y1:0,w:side,h:side};
       sq.x1=sq.x0+side-1; sq.y1=sq.y0+side-1;
-      for(const g of geom) variants.push(sampleGrid(canvas,sq,n,g.pad,g.total));
+      for(const g of geom) variants.push(sampleGrid(info,sq,n,g.pad,g.total));
     }
     return variants;
   }
-  function sampleGrid(canvas,bbox,n,pad,total){
-    const ctx=canvas.getContext('2d',{willReadFrequently:true}); const img=ctx.getImageData(0,0,canvas.width,canvas.height).data; const bits=new Uint8Array(n*n);
+  function makeImageInfo(canvas){
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    return {canvas, w:canvas.width, h:canvas.height, data:ctx.getImageData(0,0,canvas.width,canvas.height).data};
+  }
+  function brightness(info,x,y){
+    x=Math.max(0,Math.min(info.w-1,Math.round(x))); y=Math.max(0,Math.min(info.h-1,Math.round(y)));
+    const i=(y*info.w+x)*4; return info.data[i]+info.data[i+1]+info.data[i+2];
+  }
+  function sampleGrid(info,bbox,n,pad,total){
+    const bits=new Uint8Array(n*n);
     const cellW=bbox.w/total, cellH=bbox.h/total; const ox=bbox.x0+cellW*pad, oy=bbox.y0+cellH*pad;
-    // Estimate local threshold from the central data area, then clamp it.
     let minV=765,maxV=0;
-    const probe=Math.max(4,Math.floor(n/16));
+    const probe=Math.max(4,Math.floor(n/18));
     for(let py=0;py<probe;py++) for(let px=0;px<probe;px++){
-      const x=Math.max(0,Math.min(canvas.width-1,Math.round(ox+(px+.5)*(n/probe)*cellW)));
-      const y=Math.max(0,Math.min(canvas.height-1,Math.round(oy+(py+.5)*(n/probe)*cellH)));
-      const i=(y*canvas.width+x)*4; const v=img[i]+img[i+1]+img[i+2]; if(v<minV)minV=v; if(v>maxV)maxV=v;
+      const v=brightness(info, ox+(px+.5)*(n/probe)*cellW, oy+(py+.5)*(n/probe)*cellH);
+      if(v<minV)minV=v; if(v>maxV)maxV=v;
     }
-    const threshold=Math.max(300,Math.min(560,(minV+maxV)/2));
+    const threshold=Math.max(285,Math.min(585,(minV+maxV)/2));
+    const off=Math.max(0.18, Math.min(0.30, Math.min(cellW,cellH)*0.08));
     for(let y=0;y<n;y++) for(let x=0;x<n;x++){
-      const cx=Math.max(0,Math.min(canvas.width-1,Math.round(ox+(x+.5)*cellW))); const cy=Math.max(0,Math.min(canvas.height-1,Math.round(oy+(y+.5)*cellH)));
-      let sum=0,count=0; const rad=Math.max(1,Math.floor(Math.min(cellW,cellH)*0.20));
-      for(let yy=-rad;yy<=rad;yy++) for(let xx=-rad;xx<=rad;xx++){ const sx=Math.max(0,Math.min(canvas.width-1,cx+xx)); const sy=Math.max(0,Math.min(canvas.height-1,cy+yy)); const i=(sy*canvas.width+sx)*4; sum+=img[i]+img[i+1]+img[i+2]; count++; }
-      bits[y*n+x]=(sum/count)<threshold?1:0;
+      const cx=ox+(x+.5)*cellW, cy=oy+(y+.5)*cellH;
+      // 5-point cell sampling is much faster than scanning a full radius and is more tolerant to slight blur.
+      const avg=(brightness(info,cx,cy)+brightness(info,cx-cellW*off,cy)+brightness(info,cx+cellW*off,cy)+brightness(info,cx,cy-cellH*off)+brightness(info,cx,cy+cellH*off))/5;
+      bits[y*n+x]=avg<threshold?1:0;
     }
     return bits;
   }
