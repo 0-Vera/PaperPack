@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PaperPack</title>
+  <meta name="description" content="Metin tabanlı küçük dosyaları A4 veri karelerine dönüştürüp tekrar okuyan statik uygulama.">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>PaperPack</h1>
+      <p>HTML/TXT/CSS/JS/JSON dosyalarını A4 üzerinde taşınabilir veri karelerine dönüştür.</p>
+    </div>
+    <div class="mode-box">
+      <label for="appMode">Mod</label>
+      <select id="appMode">
+        <option value="online">Online / GitHub Pages</option>
+        <option value="local">Local / Offline</option>
+      </select>
+    </div>
+  </header>
+
+  <main class="shell">
+    <nav class="tabs" aria-label="PaperPack bölümleri">
+      <button class="tab active" data-tab="createPanel">Oluştur</button>
+      <button class="tab" data-tab="readPanel">Oku / Aç</button>
+      <button class="tab" data-tab="helpPanel">Notlar</button>
+    </nav>
+
+    <section id="createPanel" class="panel active">
+      <div class="grid two">
+        <section class="card">
+          <h2>1. Dosya veya metin ekle</h2>
+          <p class="muted">En fazla 9 adet küçük metin tabanlı dosya eklenebilir. Boş slot basılmaz.</p>
+          <div class="field">
+            <label for="fileInput">Dosya seç</label>
+            <input id="fileInput" type="file" multiple accept=".html,.htm,.txt,.css,.js,.json,.xml,.svg,.md,.csv,text/*,application/json,application/javascript,image/svg+xml">
+          </div>
+          <details class="manual-box">
+            <summary>Manuel HTML / metin ekle</summary>
+            <div class="field">
+              <label for="manualName">Dosya adı</label>
+              <input id="manualName" type="text" value="manuel.html" placeholder="ornek.html">
+            </div>
+            <div class="field">
+              <label for="manualMime">Tür</label>
+              <select id="manualMime">
+                <option value="text/html">HTML</option>
+                <option value="text/plain">TXT</option>
+                <option value="text/css">CSS</option>
+                <option value="application/javascript">JS</option>
+                <option value="application/json">JSON</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="manualText">İçerik</label>
+              <textarea id="manualText" rows="8" spellcheck="false"><!doctype html>
+<html lang="tr">
+<head><meta charset="utf-8"><title>PaperPack Test</title></head>
+<body><h1>Merhaba PaperPack</h1><p>Bu HTML Blob URL ile yeni sekmede açılır.</p></body>
+</html></textarea>
+            </div>
+            <button id="addManualBtn" class="btn">Manuel metni ekle</button>
+          </details>
+          <div id="fileList" class="file-list empty">Henüz dosya eklenmedi.</div>
+        </section>
+
+        <section class="card">
+          <h2>2. Çıktı ayarları</h2>
+          <div class="field">
+            <label for="densitySelect">Veri yoğunluğu</label>
+            <select id="densitySelect">
+              <option value="129">Standart · daha rahat okunur</option>
+              <option value="177" selected>Dengeli · önerilen</option>
+              <option value="241">Yüksek · küçük dosyalar için</option>
+              <option value="289">Ultra · baskı/fotoğraf kalitesi iyi olmalı</option>
+            </select>
+            <small id="capacityHint"></small>
+          </div>
+
+          <div class="field">
+            <label for="pageMode">Sayfa görünümü</label>
+            <select id="pageMode">
+              <option value="plain">Sadece veri kareleri</option>
+              <option value="desc">Veri karesi + açıklama</option>
+              <option value="title-desc" selected>Başlık + açıklama</option>
+              <option value="full">Tam bilgi + okuyucu linki</option>
+            </select>
+          </div>
+
+          <div class="split-fields">
+            <label class="check"><input id="showFrame" type="checkbox" checked> Siyah dış çerçeve</label>
+            <label class="check"><input id="includeReaderLink" type="checkbox" checked> Okuyucu linkini ekle</label>
+            <label class="check"><input id="useCompression" type="checkbox" checked> Mümkünse sıkıştır</label>
+          </div>
+          <p class="tip">Siyah çerçeve telefonla okumayı kolaylaştırır. Kapatmak görseli sadeleştirir ama otomatik okuma başarısını düşürebilir.</p>
+
+          <div class="field">
+            <label for="readerLink">Okuyucu linki</label>
+            <input id="readerLink" type="url" value="https://0-vera.github.io/PaperPack/">
+          </div>
+
+          <div class="field">
+            <label for="globalPassword">Genel şifre <span class="muted">(opsiyonel)</span></label>
+            <input id="globalPassword" type="password" autocomplete="new-password" placeholder="Boş bırakılırsa şifresiz">
+            <small id="passwordHint">20+ karakterli, karışık şifre güçlü kabul edilir.</small>
+          </div>
+
+          <div class="actions">
+            <button id="generateBtn" class="btn primary">A4 veri sayfası oluştur</button>
+            <button id="clearBtn" class="btn ghost">Temizle</button>
+          </div>
+          <div id="createStatus" class="status" role="status"></div>
+        </section>
+      </div>
+
+      <section id="outputPanel" class="card output-card hidden">
+        <div class="output-head">
+          <div>
+            <h2>3. Doğrulanmış çıktı</h2>
+            <p id="testStatus" class="muted">İç test bekleniyor.</p>
+          </div>
+          <div class="actions">
+            <button id="downloadPngBtn" class="btn" disabled>A4 PNG indir</button>
+            <button id="downloadSvgBtn" class="btn" disabled>A4 SVG indir</button>
+            <button id="printBtn" class="btn" disabled>Yazdır</button>
+          </div>
+        </div>
+        <div class="preview-wrap">
+          <canvas id="a4Canvas" aria-label="A4 PaperPack çıktısı"></canvas>
+        </div>
+        <div id="squareDownloads" class="square-downloads"></div>
+      </section>
+    </section>
+
+    <section id="readPanel" class="panel">
+      <div class="grid two">
+        <section class="card">
+          <h2>Görsel yükle ve oku</h2>
+          <p class="muted">PNG çıktısı veya telefondan çekilmiş A4 fotoğrafı yüklenebilir. Canlı kamera yok; önce görsel hazırlanır, sonra otomatik aranır.</p>
+          <div class="field">
+            <label for="readImageInput">PNG/JPG/WebP seç</label>
+            <input id="readImageInput" type="file" accept="image/png,image/jpeg,image/webp,image/*">
+          </div>
+          <div class="actions">
+            <button id="readBtn" class="btn primary" disabled>Otomatik oku</button>
+            <button id="manualModeBtn" class="btn" disabled>4 köşe seçme modu</button>
+          </div>
+          <div id="readStatus" class="status" role="status"></div>
+          <div id="readerPreview" class="reader-preview hidden">
+            <canvas id="readerCanvas"></canvas>
+            <p class="muted">Otomatik okuma başarısız olursa 4 köşe seçme modunda sol üst, sağ üst, sağ alt, sol alt sırasıyla tıklayın.</p>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Okunan paketler</h2>
+          <div id="readResults" class="read-results empty">Henüz okunan paket yok.</div>
+        </section>
+      </div>
+    </section>
+
+    <section id="helpPanel" class="panel">
+      <section class="card prose">
+        <h2>Çalışma mantığı</h2>
+        <p>PaperPack klasik QR üretmez. Sabit geometriye sahip kendi veri karesini üretir. Encoder ve decoder aynı çekirdeği kullanır. Çıktı butonları yalnızca ham kare testi ve A4 üzerinde otomatik okuma testi başarılı olursa açılır.</p>
+        <p>Şifreleme açıksa dosya verisi Web Crypto API ile PBKDF2-SHA256 + AES-GCM kullanılarak korunur. Zayıf şifrelerde A4 çıktısı ele geçirilirse offline parola denemesi yapılabileceği için uygulama açık uyarı gösterir.</p>
+        <p>Offline kullanım için harici paket, CDN, framework, backend, database, manifest veya service worker yoktur. Scriptler klasik sırayla yüklenir; ES module/fetch kullanılmaz.</p>
+      </section>
+    </section>
+  </main>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/crc.js"></script>
+  <script src="assets/js/state.js"></script>
+  <script src="assets/js/compression.js"></script>
+  <script src="assets/js/crypto.js"></script>
+  <script src="assets/js/encoder.js"></script>
+  <script src="assets/js/perspective.js"></script>
+  <script src="assets/js/decoder.js"></script>
+  <script src="assets/js/renderer.js"></script>
+  <script src="assets/js/reader.js"></script>
+  <script src="assets/js/tests.js"></script>
+  <script src="assets/js/ui.js"></script>
+</body>
+</html>
