@@ -3,188 +3,135 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PaperPack</title>
-  <meta name="description" content="Metin tabanlı küçük dosyaları A4 veri karelerine dönüştürüp tekrar okuyan statik uygulama.">
-  <link rel="stylesheet" href="assets/css/style.css">
+  <title>Palace Garden | Davet Planlama</title>
+  <meta name="description" content="Palace Garden davet planlama ve fiyat oluşturma ekranı.">
+  <meta name="theme-color" content="#f5f5f7">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>PaperPack</h1>
-      <p>HTML/TXT/CSS/JS/JSON dosyalarını A4 üzerinde taşınabilir veri karelerine dönüştür.</p>
-    </div>
-    <div class="mode-box">
-      <label for="appMode">Mod</label>
-      <select id="appMode">
-        <option value="online">Online / GitHub Pages</option>
-        <option value="local">Local / Offline</option>
-      </select>
-    </div>
-  </header>
+  <noscript><div class="noscript">Bu sayfanın çalışması için JavaScript açık olmalıdır.</div></noscript>
 
-  <main class="shell">
-    <nav class="tabs" aria-label="PaperPack bölümleri">
-      <button class="tab active" data-tab="createPanel">Oluştur</button>
-      <button class="tab" data-tab="readPanel">Oku / Aç</button>
-      <button class="tab" data-tab="helpPanel">Notlar</button>
-    </nav>
-
-    <section id="createPanel" class="panel active">
-      <div class="grid two">
-        <section class="card">
-          <h2>1. Dosya veya metin ekle</h2>
-          <p class="muted">En fazla 9 adet küçük metin tabanlı dosya eklenebilir. Boş slot basılmaz.</p>
-          <div class="field">
-            <label for="fileInput">Dosya seç</label>
-            <input id="fileInput" type="file" multiple accept=".html,.htm,.txt,.css,.js,.json,.xml,.svg,.md,.csv,text/*,application/json,application/javascript,image/svg+xml">
-          </div>
-          <details class="manual-box">
-            <summary>Manuel HTML / metin ekle</summary>
-            <div class="field">
-              <label for="manualName">Dosya adı</label>
-              <input id="manualName" type="text" value="manuel.html" placeholder="ornek.html">
-            </div>
-            <div class="field">
-              <label for="manualMime">Tür</label>
-              <select id="manualMime">
-                <option value="text/html">HTML</option>
-                <option value="text/plain">TXT</option>
-                <option value="text/css">CSS</option>
-                <option value="application/javascript">JS</option>
-                <option value="application/json">JSON</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="manualText">İçerik</label>
-              <textarea id="manualText" rows="8" spellcheck="false"><!doctype html>
-<html lang="tr">
-<head><meta charset="utf-8"><title>PaperPack Test</title></head>
-<body><h1>Merhaba PaperPack</h1><p>Bu HTML Blob URL ile yeni sekmede açılır.</p></body>
-</html></textarea>
-            </div>
-            <button id="addManualBtn" class="btn">Manuel metni ekle</button>
-          </details>
-          <div id="fileList" class="file-list empty">Henüz dosya eklenmedi.</div>
-        </section>
-
-        <section class="card">
-          <h2>2. Çıktı ayarları</h2>
-          <div class="field">
-            <label for="densitySelect">Veri yoğunluğu</label>
-            <select id="densitySelect">
-              <option value="auto" selected>Otomatik · dosyaya göre seç / gerekirse parçala</option>
-              <option value="129">Standart · daha rahat okunur</option>
-              <option value="177">Dengeli · önerilen</option>
-              <option value="241">Yüksek · okunabilir büyük çıktı</option>
-              <option value="289">Ultra · daha az parça, daha iyi baskı ister</option>
-            </select>
-            <small id="capacityHint"></small>
-          </div>
-
-          <div class="field">
-            <label for="pageMode">Sayfa görünümü</label>
-            <select id="pageMode">
-              <option value="plain">Sadece veri kareleri</option>
-              <option value="desc">Veri karesi + açıklama</option>
-              <option value="title-desc" selected>Başlık + açıklama</option>
-              <option value="full">Tam bilgi + okuyucu linki</option>
-            </select>
-          </div>
-
-          <div class="split-fields">
-            <label class="check"><input id="showFrame" type="checkbox" checked> Siyah dış çerçeve</label>
-            <label class="check"><input id="includeReaderLink" type="checkbox" checked> Okuyucu linkini ekle</label>
-            <label class="check"><input id="useCompression" type="checkbox" checked> Mümkünse sıkıştır</label>
-          </div>
-          <p class="tip">Siyah çerçeve telefonla okumayı kolaylaştırır. Kapatmak görseli sadeleştirir ama otomatik okuma başarısını düşürebilir.</p>
-
-          <div class="field">
-            <label for="readerLink">Okuyucu linki</label>
-            <input id="readerLink" type="url" value="https://0-vera.github.io/PaperPack/">
-          </div>
-
-          <div class="field">
-            <label for="globalPassword">Genel şifre <span class="muted">(opsiyonel)</span></label>
-            <input id="globalPassword" type="password" autocomplete="new-password" placeholder="Boş bırakılırsa şifresiz">
-            <small id="passwordHint">20+ karakterli, karışık şifre güçlü kabul edilir.</small>
-          </div>
-
-          <div class="actions">
-            <button id="generateBtn" class="btn primary">A4 veri sayfası oluştur</button>
-            <button id="clearBtn" class="btn ghost">Temizle</button>
-          </div>
-          <div id="createStatus" class="status" role="status"></div>
-        </section>
+  <div class="intro" id="intro">
+    <div class="intro-glow one"></div><div class="intro-glow two"></div>
+    <div class="intro-card">
+      <div class="logo-frame">
+        <!-- Logonu assets/logo.png olarak ekleyip aşağıdaki src değerini assets/logo.png yapabilirsin. Kare PNG önerilir. -->
+        <img src="assets/logo-placeholder.svg" alt="Palace Garden Logo">
       </div>
+      <p class="eyebrow light">Palace Garden</p>
+      <h1>Hayalinizdeki Davet Eviniz</h1>
+      <button class="btn gold large" id="startBtn" type="button">Keşfetmeye Başla</button>
+    </div>
+  </div>
 
-      <section id="outputPanel" class="card output-card hidden">
-        <div class="output-head">
-          <div>
-            <h2>3. Doğrulanmış çıktı</h2>
-            <p id="testStatus" class="muted">İç test bekleniyor.</p>
+  <main class="app">
+    <div class="page">
+      <section class="screen active" id="plannerScreen">
+        <header class="hero">
+          <p class="eyebrow">Davet Planlama</p>
+          <h2>Organizasyonunuzu seçin, toplam tutarı anında görün.</h2>
+        </header>
+
+        <div class="layout">
+          <div class="planner" id="planner">
+            <section class="panel">
+              <h3>Kiralama Planı</h3>
+              <div class="choices">
+                <button class="choice selected" type="button" data-group="rental" data-label="2 Saatlik Plan" data-price="50000"><strong>2 Saatlik Plan</strong><span>50.000 TL</span></button>
+                <button class="choice" type="button" data-group="rental" data-label="3 Saatlik Plan" data-price="68000"><strong>3 Saatlik Plan</strong><span>68.000 TL</span></button>
+                <button class="choice" type="button" data-group="rental" data-label="4 Saatlik Plan" data-price="85000"><strong>4 Saatlik Plan</strong><span>85.000 TL</span></button>
+                <button class="choice" type="button" data-group="rental" data-label="Tam Gün Plan" data-price="140000"><strong>Tam Gün Plan</strong><span>140.000 TL</span></button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <h3>Konuk Sayısı</h3>
+              <div class="choices">
+                <button class="choice selected" type="button" data-group="guest" data-label="0 - 50 Kişi" data-price="0" data-display="Dahil"><strong>0 - 50 Kişi</strong><span class="included">Dahil</span></button>
+                <button class="choice" type="button" data-group="guest" data-label="51 - 70 Kişi" data-price="5000"><strong>51 - 70 Kişi</strong><span>+5.000 TL</span></button>
+                <button class="choice" type="button" data-group="guest" data-label="71 - 100 Kişi" data-price="10000"><strong>71 - 100 Kişi</strong><span>+10.000 TL</span></button>
+                <button class="choice" type="button" data-group="guest" data-label="101 - 150 Kişi" data-price="18000"><strong>101 - 150 Kişi</strong><span>+18.000 TL</span></button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <h3>Menü Planı</h3>
+              <div class="choices">
+                <button class="choice selected" type="button" data-group="menu" data-label="Menü Eklenmedi" data-price="0" data-display="Eklenmedi"><strong>Menü Eklenmedi</strong><span class="muted">Eklenmedi</span></button>
+                <button class="choice" type="button" data-group="menu" data-label="Kokteyl Menü" data-price="30000"><strong>Kokteyl Menü</strong><span>30.000 TL</span></button>
+                <button class="choice" type="button" data-group="menu" data-label="Fix Menü" data-price="40000"><strong>Fix Menü</strong><span>40.000 TL</span></button>
+                <button class="choice" type="button" data-group="menu" data-label="Lüks Menü" data-price="85000"><strong>Lüks Menü</strong><span>85.000 TL</span></button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <h3>Garson Hizmeti</h3>
+              <div class="choices">
+                <button class="choice selected" type="button" data-group="waiter" data-label="Garson Eklenmedi" data-price="0" data-display="Eklenmedi"><strong>Garson Eklenmedi</strong><span class="muted">Eklenmedi</span></button>
+                <button class="choice" type="button" data-group="waiter" data-label="2 Kişi" data-price="5000"><strong>2 Kişi</strong><span>5.000 TL</span></button>
+                <button class="choice" type="button" data-group="waiter" data-label="4 Kişi" data-price="10000"><strong>4 Kişi</strong><span>10.000 TL</span></button>
+                <button class="choice" type="button" data-group="waiter" data-label="6 Kişi" data-price="15000"><strong>6 Kişi</strong><span>15.000 TL</span></button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <h3>Çekim Hizmeti</h3>
+              <div class="choices">
+                <button class="choice selected" type="button" data-group="shooting" data-label="Çekim Eklenmedi" data-price="0" data-display="Eklenmedi"><strong>Çekim Eklenmedi</strong><span class="muted">Eklenmedi</span></button>
+                <button class="choice" type="button" data-group="shooting" data-label="Fotoğraf Çekimi" data-price="7500"><strong>Fotoğraf</strong><span>7.500 TL</span></button>
+                <button class="choice" type="button" data-group="shooting" data-label="Video & Dron" data-price="12500"><strong>Video & Dron</strong><span>12.500 TL</span></button>
+                <button class="choice" type="button" data-group="shooting" data-label="Tam Çekim Paketi" data-price="20000"><strong>Tam Paket</strong><span>20.000 TL</span></button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <h3>Ek Hizmetler</h3>
+              <div class="choices">
+                <button class="choice" type="button" data-group="extras" data-multiple="true" data-label="20'li Helyum Balon" data-price="2500"><strong>Helyum Balon</strong><span>+2.500 TL</span></button>
+                <button class="choice" type="button" data-group="extras" data-multiple="true" data-label="10'lu Konfeti" data-price="1000"><strong>Konfeti</strong><span>+1.000 TL</span></button>
+                <button class="choice" type="button" data-group="extras" data-multiple="true" data-label="Kırmızı Halı" data-price="1500"><strong>Kırmızı Halı</strong><span>+1.500 TL</span></button>
+                <button class="choice" type="button" data-group="extras" data-multiple="true" data-label="Canlı Gül" data-price="3000"><strong>Canlı Gül</strong><span>+3.000 TL</span></button>
+                <button class="choice" type="button" data-group="extras" data-multiple="true" data-label="DJ Hizmeti" data-price="12000"><strong>DJ Hizmeti</strong><span>+12.000 TL</span></button>
+                <button class="choice" type="button" data-group="extras" data-multiple="true" data-label="Canlı Müzik" data-price="18000"><strong>Canlı Müzik</strong><span>+18.000 TL</span></button>
+              </div>
+            </section>
           </div>
-          <div class="actions">
-            <button id="downloadPngBtn" class="btn" disabled>A4 PNG indir</button>
-            <button id="downloadSvgBtn" class="btn" disabled>A4 SVG indir</button>
-            <button id="printBtn" class="btn" disabled>Yazdır</button>
-          </div>
+
+          <aside class="summary">
+            <div class="summary-top"><p>Toplam Tutar</p><strong id="summaryTotal">50.000 TL</strong></div>
+            <div class="summary-body" id="summaryRows"></div>
+            <div class="summary-actions"><button class="btn primary" id="continueBtn" type="button">Devam Et</button><button class="btn secondary" id="resetBtn" type="button">Sıfırla</button></div>
+          </aside>
         </div>
-        <div class="preview-wrap">
-          <canvas id="a4Canvas" aria-label="A4 PaperPack çıktısı"></canvas>
-          <div id="extraPages" class="extra-pages"></div>
+      </section>
+
+      <section class="screen" id="formScreen">
+        <header class="hero"><p class="eyebrow">Bilgiler</p><h2>Size ulaşabilmemiz için bilgilerinizi girin.</h2></header>
+        <div class="layout">
+          <section class="form-panel">
+            <form id="customerForm">
+              <div class="form-grid">
+                <label><span>Ad Soyad</span><input name="name" type="text" autocomplete="name" required></label>
+                <label><span>Telefon</span><input name="phone" type="tel" autocomplete="tel" required></label>
+                <label><span>E-posta</span><input name="email" type="email" autocomplete="email" required></label>
+                <label><span>Davet Tarihi</span><input name="date" type="date"></label>
+                <label class="full"><span>Not</span><textarea name="note" rows="5"></textarea></label>
+              </div>
+              <div class="form-actions"><button class="btn secondary" id="backBtn" type="button">Geri Dön</button><button class="btn primary" type="submit">Siparişi Tamamla</button></div>
+            </form>
+          </section>
+          <aside class="summary form-summary"><div class="summary-top"><p>Toplam Tutar</p><strong id="formTotal">50.000 TL</strong></div><div class="summary-body" id="formRows"></div></aside>
         </div>
-        <div id="squareDownloads" class="square-downloads"></div>
       </section>
-    </section>
 
-    <section id="readPanel" class="panel">
-      <div class="grid two">
-        <section class="card">
-          <h2>Görsel yükle ve oku</h2>
-          <p class="muted">PNG çıktısı veya telefondan çekilmiş A4 fotoğrafı yüklenebilir. Canlı kamera yok; önce görsel hazırlanır, sonra otomatik aranır.</p>
-          <div class="field">
-            <label for="readImageInput">PNG/JPG/WebP seç</label>
-            <input id="readImageInput" type="file" accept="image/png,image/jpeg,image/webp,image/*">
-          </div>
-          <div class="actions">
-            <button id="readBtn" class="btn primary" disabled>Otomatik oku</button>
-            <button id="manualModeBtn" class="btn" disabled>4 köşe seçme modu</button>
-          </div>
-          <div id="readStatus" class="status" role="status"></div>
-          <div id="readerPreview" class="reader-preview hidden">
-            <canvas id="readerCanvas"></canvas>
-            <p class="muted">Otomatik okuma başarısız olursa 4 köşe seçme modunda sol üst, sağ üst, sağ alt, sol alt sırasıyla tıklayın.</p>
-          </div>
-        </section>
-
-        <section class="card">
-          <h2>Okunan paketler</h2>
-          <div id="readResults" class="read-results empty">Henüz okunan paket yok.</div>
-        </section>
-      </div>
-    </section>
-
-    <section id="helpPanel" class="panel">
-      <section class="card prose">
-        <h2>Çalışma mantığı</h2>
-        <p>PaperPack klasik QR üretmez. Sabit geometriye sahip kendi veri karesini üretir. Encoder ve decoder aynı çekirdeği kullanır. Çıktı üretirken önce ham kare testi, sonra A4 üzerindeki otomatik okuma testi çalışır. Büyük dosyalar tek kareye sığmazsa dosya parçalara ayrılır; boş slot veya sahte doldurma karesi basılmaz.</p>
-        <p>Şifreleme açıksa dosya verisi Web Crypto API ile PBKDF2-SHA256 + AES-GCM kullanılarak korunur. Zayıf şifrelerde A4 çıktısı ele geçirilirse offline parola denemesi yapılabileceği için uygulama açık uyarı gösterir.</p>
-        <p>Offline kullanım için harici paket, CDN, framework, backend, database, manifest veya service worker yoktur. Scriptler klasik sırayla yüklenir; ES module/fetch kullanılmaz.</p>
+      <section class="screen" id="doneScreen">
+        <div class="done"><p class="eyebrow">Tamamlandı</p><h2>Siparişiniz Alındı</h2><div class="receipt" id="receipt"></div><div class="form-actions"><button class="btn secondary" id="copyBtn" type="button">Fişi Kopyala</button><button class="btn secondary" id="mailBtn" type="button">Mail Oluştur</button><button class="btn primary" id="printBtn" type="button">Yazdır</button></div></div>
       </section>
-    </section>
+    </div>
   </main>
 
-  <script src="assets/js/app.js"></script>
-  <script src="assets/js/crc.js"></script>
-  <script src="assets/js/state.js"></script>
-  <script src="assets/js/compression.js"></script>
-  <script src="assets/js/crypto.js"></script>
-  <script src="assets/js/encoder.js"></script>
-  <script src="assets/js/perspective.js"></script>
-  <script src="assets/js/decoder.js"></script>
-  <script src="assets/js/renderer.js"></script>
-  <script src="assets/js/reader.js"></script>
-  <script src="assets/js/tests.js"></script>
-  <script src="assets/js/ui.js"></script>
+  <div class="mobile-bar" id="mobileBar"><div><small>Toplam Tutar</small><strong id="mobileTotal">50.000 TL</strong></div><button class="btn primary" id="mobileContinueBtn" type="button">Devam</button></div>
+  <div class="toast" id="toast"></div>
+  <script src="script.js"></script>
 </body>
 </html>
