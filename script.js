@@ -1,0 +1,1 @@
+document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('site-open');var intro=document.getElementById('intro');var start=document.getElementById('startBtn');if(start){start.addEventListener('click',function(){intro.style.display='none';});}});
